@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FacetIQ.Domain/FacetIQ.Domain.csproj" />
+    <Project Path="src/FacetIQ.Contracts/FacetIQ.Contracts.csproj" />
+    <Project Path="src/FacetIQ.Services/FacetIQ.Services.csproj" />
+    <Project Path="src/FacetIQ.Data/FacetIQ.Data.csproj" />
+    <Project Path="src/FacetIQ.API/FacetIQ.API.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FacetIQ.Services.Tests/FacetIQ.Services.Tests.csproj" />
+    <Project Path="tests/FacetIQ.Data.Tests/FacetIQ.Data.Tests.csproj" />
+    <Project Path="tests/FacetIQ.API.Tests/FacetIQ.API.Tests.csproj" />
+    <Project Path="tests/FacetIQ.Conformity.Tests/FacetIQ.Conformity.Tests.csproj" />
+  </Folder>
+</Solution>
