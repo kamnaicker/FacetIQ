@@ -1,23 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
-    <PackageReference Include="Microsoft.OpenApi" Version="3.9.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\FacetIQ.Domain\FacetIQ.Domain.csproj" />
-    <ProjectReference Include="..\FacetIQ.Contracts\FacetIQ.Contracts.csproj" />
-    <ProjectReference Include="..\FacetIQ.Services\FacetIQ.Services.csproj" />
-    <ProjectReference Include="..\FacetIQ.Data\FacetIQ.Data.csproj" />
-  </ItemGroup>
-
+	
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+		<PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<ProjectReference Include="..\FacetIQ.Domain\FacetIQ.Domain.csproj" />
+		<ProjectReference Include="..\FacetIQ.Contracts\FacetIQ.Contracts.csproj" />
+		<ProjectReference Include="..\FacetIQ.Services\FacetIQ.Services.csproj" />
+		<ProjectReference Include="..\FacetIQ.Data\FacetIQ.Data.csproj" />
+	</ItemGroup>
+	
 </Project>
