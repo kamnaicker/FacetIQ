@@ -1,6 +1,8 @@
+using FacetIQ.API.Authorization;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -19,6 +21,13 @@ builder.Services
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AuthDbContext>();
 
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
+
+builder.Services.AddScoped<IAuthorizationHandler, RequesterClaimsHandler>();
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -28,7 +37,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 
     app.MapScalarApiReference(options =>
     {
@@ -37,7 +46,7 @@ if (app.Environment.IsDevelopment())
 
         // Optional custom styling configuration
         options.WithTheme(ScalarTheme.DeepSpace);
-    });
+    }).AllowAnonymous();
 }
 
 app.UseHttpsRedirection();
