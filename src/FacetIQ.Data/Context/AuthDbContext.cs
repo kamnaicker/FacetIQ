@@ -11,14 +11,10 @@ namespace FacetIQ.Data.Context
         {
         }
 
-        protected AuthDbContext()
+        protected override void OnModelCreating(ModelBuilder mb)
         {
-        }
-
-        protected override void OnModelCreating(ModelBuilder builder)
-        {
-            base.OnModelCreating(builder);
-            builder.HasDefaultSchema("auth");
+            base.OnModelCreating(mb);
+            mb.HasDefaultSchema("auth");
         }
     }
 }

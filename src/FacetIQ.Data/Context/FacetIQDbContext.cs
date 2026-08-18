@@ -1,4 +1,3 @@
-using FacetIQ.Data.Configurations;
 using FacetIQ.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,17 +5,23 @@ namespace FacetIQ.Data.Context;
 
 public class FacetIQDbContext : DbContext
 {
-    public FacetIQDbContext(DbContextOptions<FacetIQDbContext> options): base(options)
-    {}
-
-    protected FacetIQDbContext() 
-    {}
-
-    protected override void OnModelCreating(ModelBuilder model)
+    public FacetIQDbContext(DbContextOptions<FacetIQDbContext> options) : base(options)
     {
-        new AuditRecordConfiguration().Configure(model.Entity<AuditRecord>());
-        new NormConfiguration().Configure(model.Entity<Norm>());
-        new SubjectAttributeConfiguration().Configure(model.Entity<SubjectAttribute>());
-        new SubjectConfiguration().Configure(model.Entity<Subject>());
+    }
+
+    public DbSet<Subject> Subjects => Set<Subject>();
+
+    public DbSet<SubjectAttribute> SubjectAttributes => Set<SubjectAttribute>();
+
+    public DbSet<Norm> Norms => Set<Norm>();
+
+    public DbSet<AuditRecord> AuditRecords => Set<AuditRecord>();
+
+    protected override void OnModelCreating(ModelBuilder mb)
+    {
+        base.OnModelCreating(mb);
+        mb.HasDefaultSchema("app");
+
+        mb.ApplyConfigurationsFromAssembly(typeof(FacetIQDbContext).Assembly);
     }
 }

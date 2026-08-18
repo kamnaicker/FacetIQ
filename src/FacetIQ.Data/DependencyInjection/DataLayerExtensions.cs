@@ -1,4 +1,6 @@
 using FacetIQ.Data.Context;
+using FacetIQ.Data.Repositories;
+using FacetIQ.Domain.Abstractions.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,12 +14,17 @@ public static class DataLayerExtensions
     {
         services.AddDbContext<AuthDbContext>(o =>
             o.UseNpgsql(connectionString, npg => npg
-                .MigrationsHistoryTable("__EFMigrationHistory", "auth")
+                .MigrationsHistoryTable("__EFMigrationsHistory", "auth")
                 .MigrationsAssembly(typeof(AuthDbContext).Assembly.FullName)));
 
         services.AddDbContext<FacetIQDbContext>(o =>
             o.UseNpgsql(connectionString, npg => npg
-                .MigrationsHistoryTable("__EFMigrationsHistory", "app")));
+                .MigrationsHistoryTable("__EFMigrationsHistory", "app")
+                .MigrationsAssembly(typeof(FacetIQDbContext).Assembly.FullName)));
+
+        services.AddScoped<INormRepository, NormRepository>();
+        services.AddScoped<IAttributeRepository, AttributeRepository>();
+        services.AddScoped<IAuditRecordRepository, AuditRecordRepository>();
 
         return services;
     }

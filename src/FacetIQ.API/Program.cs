@@ -2,6 +2,7 @@ using FacetIQ.API.Authorization;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
+using FacetIQ.Services.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ string cs = builder.Configuration.GetConnectionString("DefaultConnection")
 
 // Add services to the container.
 builder.Services.AddDataLayer(cs);
+builder.Services.AddServiceLayer();
 
 builder.Services
     .AddIdentityApiEndpoints<AppUser>()
@@ -51,9 +53,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Authentication populates the principal that authorization then evaluates. The order is
+// load-bearing: reversed, every request is anonymous and the fallback policy refuses it.
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapIdentityApi<AppUser>();
+// Credentials cannot be required to obtain credentials, so these endpoints opt out of the
+// fallback policy.
+app.MapIdentityApi<AppUser>().AllowAnonymous();
 
 app.MapControllers();
 
