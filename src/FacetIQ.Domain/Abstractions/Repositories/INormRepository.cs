@@ -8,7 +8,7 @@ public interface INormRepository
     /// The subject's current norms governing claims of the given key. Superseded revisions
     /// are excluded: only the rule in force can govern a new request.
     /// </summary>
-    Task<IReadOnlyList<Norm>> GetGoverningAsync(
+    Task<IReadOnlyList<Norm>> GetGoverningNormsAsync(
         Guid subjectId,
         string attributeKey,
         CancellationToken cancellationToken);

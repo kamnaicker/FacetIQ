@@ -39,7 +39,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         DisclosureRequest request,
         CancellationToken cancellationToken)
     {
-        var governing = await _norms.GetGoverningAsync(request.SubjectId, request.AttributeKey, cancellationToken);
+        var governing = await _norms.GetGoverningNormsAsync(request.SubjectId, request.AttributeKey, cancellationToken);
         var candidates = _matcher.Match(governing, request);
         var selection = _ranker.Select(candidates);
 

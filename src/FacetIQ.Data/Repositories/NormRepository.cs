@@ -11,7 +11,7 @@ public sealed class NormRepository : INormRepository
 
     public NormRepository(FacetIQDbContext context) => _context = context;
 
-    public async Task<IReadOnlyList<Norm>> GetGoverningAsync(
+    public async Task<IReadOnlyList<Norm>> GetGoverningNormsAsync(
         Guid subjectId,
         string attributeKey,
         CancellationToken cancellationToken)

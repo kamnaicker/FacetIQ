@@ -13,7 +13,7 @@ internal sealed class InMemoryNormRepository : INormRepository
 
     public InMemoryNormRepository(params Norm[] norms) => _norms = norms;
 
-    public Task<IReadOnlyList<Norm>> GetGoverningAsync(
+    public Task<IReadOnlyList<Norm>> GetGoverningNormsAsync(
         Guid subjectId,
         string attributeKey,
         CancellationToken cancellationToken)
