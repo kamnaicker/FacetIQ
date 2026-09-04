@@ -14,12 +14,37 @@ namespace FacetIQ.Services.Tests;
 /// </summary>
 public class DisclosureEvaluatorTests
 {
+    private const string RequesterUserId = "requester-1";
+
     private static readonly Guid SubjectId = new("0a5f4d8e-0000-4000-8000-000000000001");
 
     private static readonly SubjectAttribute LegalName = Claim("name", "Amara Chidinma Nwosu", "legal");
     private static readonly SubjectAttribute ProfessionalName = Claim("name", "Dr Amara Nwosu", "professional");
     private static readonly SubjectAttribute SocialName = Claim("name", "Amara", "social");
     private static readonly SubjectAttribute DateOfBirth = Claim("dateOfBirth", "1994-03-11", "legal");
+
+    /// <summary>Held by the test rather than taken from the evaluator, so a replay is independent.</summary>
+    private static readonly TransformService Transforms = new();
+
+    /// <summary>
+    /// O1: a subject reading their own claims receives every one of them, in the form they were
+    /// stored. The norm in force here would have selected one name and reshaped it, so the branch
+    /// running ahead of norm lookup is what this demonstrates.
+    /// </summary>
+    [Fact]
+    public async Task SelfAccess_ReturnsEveryClaim_Untransformed()
+    {
+        var audit = new RecordingAuditRepository();
+        var owner = new Subject { Id = SubjectId, UserId = RequesterUserId };
+        var norms = new[] { Rule(SocialName, purpose: Purpose.Social, transform: TransformKind.Reformat) };
+
+        var result = await Evaluate(norms, Ask("name", Purpose.Social), audit, owner);
+
+        Assert.Equal(ActionType.Return, result.Outcome);
+        Assert.Equal(new[] { "Amara Chidinma Nwosu", "Dr Amara Nwosu", "Amara" }, result.Values);
+        Assert.Null(result.Value);
+        Assert.Single(audit.Written);
+    }
 
     /// <summary>
     /// O9: the same stored claim yields different representations across different contexts.
@@ -43,6 +68,27 @@ public class DisclosureEvaluatorTests
         Assert.Equal("Amara Chidinma Nwosu", regulatory.Value);
         Assert.Equal("Dr Amara Nwosu", clinical.Value);
         Assert.Equal("Amara", social.Value);
+    }
+
+    /// <summary>
+    /// O10: two requests identical but for one condition return different representations. The
+    /// three-context test above varies purpose and relationship together; isolating one variable
+    /// is what makes this evidence that the condition is what moved the outcome.
+    /// </summary>
+    [Fact]
+    public async Task ChangingOneCondition_ChangesTheRepresentation()
+    {
+        var norms = new[]
+        {
+            Rule(SocialName, purpose: Purpose.Clinical),
+            Rule(ProfessionalName, purpose: Purpose.Clinical, relationship: "colleague")
+        };
+
+        var withoutRelationship = await Evaluate(norms, Ask("name", Purpose.Clinical));
+        var asColleague = await Evaluate(norms, Ask("name", Purpose.Clinical, "colleague"));
+
+        Assert.Equal("Amara", withoutRelationship.Value);
+        Assert.Equal("Dr Amara Nwosu", asColleague.Value);
     }
 
     /// <summary>O8: equally specific norms that both apply are a tie the engine refuses to break.</summary>
@@ -128,7 +174,7 @@ public class DisclosureEvaluatorTests
         Assert.NotEqual(DateOfBirth.Value, result.Value);
     }
 
-    /// <summary>O5 and O6: every outcome is recorded exactly once, and without the value released.</summary>
+    /// <summary>O5: every outcome is recorded exactly once, and without the value released.</summary>
     [Fact]
     public async Task EveryOutcome_IsRecordedOnce_WithoutTheDisclosedValue()
     {
@@ -142,6 +188,31 @@ public class DisclosureEvaluatorTests
         Assert.Equal(norms[0].Id, record.NormId);
         Assert.Equal(norms[0].Version, record.NormVersion);
         Assert.DoesNotContain(result.Value!, record.JustifyingPrinciple ?? string.Empty);
+    }
+
+    /// <summary>
+    /// O6: the record names the transform and its parameter, which applied to the stored claim
+    /// reproduce the released value. AuditRecord declares no property that could hold that value,
+    /// so a disclosure stays verifiable without a second copy of the subject's data.
+    /// </summary>
+    [Fact]
+    public async Task AuditRecord_ReconstructsDisclosure_WithoutStoringTheValue()
+    {
+        var audit = new RecordingAuditRepository();
+        var norms = new[]
+        {
+            Rule(DateOfBirth, purpose: Purpose.Social, transform: TransformKind.Generalise, parameter: "18")
+        };
+
+        var result = await Evaluate(norms, Ask("dateOfBirth", Purpose.Social), audit);
+
+        var record = Assert.Single(audit.Written);
+        Assert.Equal(TransformKind.Generalise, record.Transform);
+        Assert.Equal("18", record.TransformParameter);
+
+        var replayed = Transforms.Apply(record.Transform!.Value, record.TransformParameter, DateOfBirth.Value);
+
+        Assert.Equal(result.Value, replayed);
     }
 
     [Fact]
@@ -159,11 +230,13 @@ public class DisclosureEvaluatorTests
     private static async Task<DisclosureResult> Evaluate(
         Norm[] norms,
         DisclosureRequest request,
-        RecordingAuditRepository? audit = null)
+        RecordingAuditRepository? audit = null,
+        Subject? owner = null)
     {
         audit ??= new RecordingAuditRepository();
 
         var evaluator = new DisclosureEvaluator(
+            new InMemorySubjectRepository(owner),
             new InMemoryNormRepository(norms),
             new InMemoryAttributeRepository(LegalName, ProfessionalName, SocialName, DateOfBirth),
             new NormMatcher(),
@@ -175,7 +248,7 @@ public class DisclosureEvaluatorTests
     }
 
     private static DisclosureRequest Ask(string key, Purpose purpose, string? relationship = null) =>
-        new(SubjectId, key, "requester-1", relationship, purpose, RequestChannel.Api);
+        new(SubjectId, key, RequesterUserId, relationship, purpose, RequestChannel.Api);
 
     private static SubjectAttribute Claim(string key, string value, string label) => new()
     {

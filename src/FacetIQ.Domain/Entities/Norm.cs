@@ -5,7 +5,7 @@ namespace FacetIQ.Domain.Entities;
 /// <summary>
 /// A rule authored by a subject: under these conditions, disclose this claim in this form.
 ///
-/// The three conditions describe an information flow. Each is nullable, and null is a
+/// The two conditions describe an information flow. Each is nullable, and null is a
 /// wildcard matching any request. A norm is never edited in place; a change creates a new
 /// revision, so an audit record always names the rule that was actually in force.
 /// </summary>
@@ -31,8 +31,6 @@ public sealed class Norm
     public string? Relationship { get; init; }
 
     public Purpose? Purpose { get; init; }
-
-    public RequestChannel? Channel { get; init; }
 
     public ActionType Action { get; init; }
 

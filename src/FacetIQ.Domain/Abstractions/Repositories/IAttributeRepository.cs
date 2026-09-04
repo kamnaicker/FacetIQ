@@ -5,4 +5,13 @@ namespace FacetIQ.Domain.Abstractions.Repositories;
 public interface IAttributeRepository
 {
     Task<SubjectAttribute?> FindAsync(Guid attributeId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every claim a subject holds under one key. A key identifies a kind of claim, not a
+    /// single value, so this returns the set the subject is choosing between.
+    /// </summary>
+    Task<IReadOnlyList<SubjectAttribute>> ListByKeyAsync(
+        Guid subjectId,
+        string key,
+        CancellationToken cancellationToken);
 }

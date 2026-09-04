@@ -24,6 +24,11 @@ public class SubjectAttributeConfiguration : IEntityTypeConfiguration<SubjectAtt
         builder.Property(attribute => attribute.Label)
             .HasMaxLength(64);
 
+        // Stored by name, as elsewhere, so reordering the enum cannot reinterpret a stored limit.
+        builder.Property(attribute => attribute.CollectedFor)
+            .HasConversion<string>()
+            .HasMaxLength(32);
+
         // Requests arrive by key, and a subject may hold several claims under one key.
         builder.HasIndex(attribute => new { attribute.SubjectId, attribute.Key });
 

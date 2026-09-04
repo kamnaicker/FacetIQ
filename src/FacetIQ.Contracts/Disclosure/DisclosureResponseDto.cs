@@ -10,6 +10,12 @@ public sealed record DisclosureResponseDto
 
     public string? Value { get; init; }
 
+    /// <summary>
+    /// Populated only when a subject reads their own claims, where every value is returned
+    /// rather than one being selected. <see cref="Value"/> is null in that case.
+    /// </summary>
+    public IReadOnlyList<string>? Values { get; init; }
+
     public string? DenyReason { get; init; }
 
     public string? JustifyingPrinciple { get; init; }

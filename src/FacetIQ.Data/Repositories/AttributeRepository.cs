@@ -15,4 +15,15 @@ public sealed class AttributeRepository : IAttributeRepository
         _context.SubjectAttributes
             .AsNoTracking()
             .SingleOrDefaultAsync(attribute => attribute.Id == attributeId, cancellationToken);
+
+    public async Task<IReadOnlyList<SubjectAttribute>> ListByKeyAsync(
+        Guid subjectId,
+        string key,
+        CancellationToken cancellationToken)
+    {
+        return await _context.SubjectAttributes
+            .AsNoTracking()
+            .Where(attribute => attribute.SubjectId == subjectId && attribute.Key == key)
+            .ToListAsync(cancellationToken);
+    }
 }

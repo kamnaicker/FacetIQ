@@ -3,6 +3,7 @@ using System;
 using FacetIQ.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FacetIQ.Data.Migrations.App
 {
     [DbContext(typeof(FacetIQDbContext))]
-    partial class FacetIQDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260904181222_RemoveNormChannel")]
+    partial class RemoveNormChannel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -237,10 +240,6 @@ namespace FacetIQ.Data.Migrations.App
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("CollectedFor")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -292,7 +291,6 @@ namespace FacetIQ.Data.Migrations.App
                         new
                         {
                             Id = new Guid("0a5f4d8e-0000-4000-8000-000000000013"),
-                            CollectedFor = "Social",
                             Key = "dateOfBirth",
                             Label = "legal",
                             SubjectId = new Guid("0a5f4d8e-0000-4000-8000-000000000001"),

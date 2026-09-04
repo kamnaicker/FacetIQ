@@ -38,6 +38,7 @@ public static class DisclosureMapper
     {
         Outcome = result.Outcome.ToString(),
         Value = result.Value,
+        Values = result.Values,
         DenyReason = result.DenyReason?.ToString(),
         JustifyingPrinciple = result.Norm?.JustifyingPrinciple
     };

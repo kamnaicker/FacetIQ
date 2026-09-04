@@ -1,3 +1,5 @@
+using FacetIQ.Domain.Enums;
+
 namespace FacetIQ.Domain.Entities;
 
 /// <summary>
@@ -21,4 +23,10 @@ public sealed class SubjectAttribute
     /// Carried for the authoring interface; the engine selects by norm, not by label.
     /// </summary>
     public string? Label { get; init; }
+
+    /// <summary>
+    /// What this claim was collected for, where a purpose was stated. Null records no limit,
+    /// so the norm alone decides. A stated purpose binds the engine even where a norm permits.
+    /// </summary>
+    public Purpose? CollectedFor { get; init; }
 }

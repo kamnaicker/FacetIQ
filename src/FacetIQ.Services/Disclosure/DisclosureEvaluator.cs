@@ -12,6 +12,7 @@ namespace FacetIQ.Services.Disclosure;
 /// </summary>
 public sealed class DisclosureEvaluator : IDisclosureEvaluator
 {
+    private readonly ISubjectRepository _subjects;
     private readonly INormRepository _norms;
     private readonly IAttributeRepository _attributes;
     private readonly INormMatcher _matcher;
@@ -20,6 +21,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
     private readonly IAuditWriter _audit;
 
     public DisclosureEvaluator(
+        ISubjectRepository subjects,
         INormRepository norms,
         IAttributeRepository attributes,
         INormMatcher matcher,
@@ -27,6 +29,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         ITransformService transforms,
         IAuditWriter audit)
     {
+        _subjects = subjects;
         _norms = norms;
         _attributes = attributes;
         _matcher = matcher;
@@ -39,21 +42,46 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         DisclosureRequest request,
         CancellationToken cancellationToken)
     {
+        var subject = await _subjects.FindAsync(request.SubjectId, cancellationToken);
+
+        var result = subject is not null && subject.UserId == request.RequesterUserId
+            ? await SelfAccessAsync(request, cancellationToken)
+            : await GovernedAsync(request, cancellationToken);
+
+        await _audit.RecordAsync(request, result, cancellationToken);
+
+        return result;
+    }
+
+    /// <summary>
+    /// A subject reading their own claims receives all of them, in the form they were stored.
+    /// This precedes norm lookup deliberately: a right of access is not something the subject's
+    /// own rules can narrow.
+    /// </summary>
+    private async Task<DisclosureResult> SelfAccessAsync(
+        DisclosureRequest request,
+        CancellationToken cancellationToken)
+    {
+        var claims = await _attributes.ListByKeyAsync(request.SubjectId, request.AttributeKey, cancellationToken);
+
+        return DisclosureResult.SelfAccess(claims.Select(claim => claim.Value).ToList());
+    }
+
+    private async Task<DisclosureResult> GovernedAsync(
+        DisclosureRequest request,
+        CancellationToken cancellationToken)
+    {
         var governing = await _norms.GetGoverningNormsAsync(request.SubjectId, request.AttributeKey, cancellationToken);
         var candidates = _matcher.Match(governing, request);
         var selection = _ranker.Select(candidates);
 
-        var result = selection.Outcome switch
+        return selection.Outcome switch
         {
             SelectionOutcome.NoMatch => DisclosureResult.Denied(DenyReasonCode.NoMatchingNorm),
             SelectionOutcome.Ambiguous => DisclosureResult.Denied(DenyReasonCode.AmbiguousNorms),
             SelectionOutcome.Selected => await ResolveAsync(selection.Norm!, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(selection), selection.Outcome, "Unhandled selection.")
         };
-
-        await _audit.RecordAsync(request, result, cancellationToken);
-
-        return result;
     }
 
     /// <summary>

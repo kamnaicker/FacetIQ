@@ -11,4 +11,13 @@ internal sealed class InMemoryAttributeRepository : IAttributeRepository
 
     public Task<SubjectAttribute?> FindAsync(Guid attributeId, CancellationToken cancellationToken) =>
         Task.FromResult(_attributes.SingleOrDefault(attribute => attribute.Id == attributeId));
+
+    public Task<IReadOnlyList<SubjectAttribute>> ListByKeyAsync(
+        Guid subjectId,
+        string key,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<SubjectAttribute>>(
+            _attributes
+                .Where(attribute => attribute.SubjectId == subjectId && attribute.Key == key)
+                .ToList());
 }

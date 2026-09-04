@@ -26,7 +26,6 @@ public class NormConfiguration : IEntityTypeConfiguration<Norm>
         // Enums are stored by name so a migration that reorders them cannot silently
         // reinterpret rules already written.
         builder.Property(norm => norm.Purpose).HasConversion<string>().HasMaxLength(32);
-        builder.Property(norm => norm.Channel).HasConversion<string>().HasMaxLength(32);
         builder.Property(norm => norm.Action).HasConversion<string>().HasMaxLength(32);
         builder.Property(norm => norm.Transform).HasConversion<string>().HasMaxLength(32);
         builder.Property(norm => norm.DenyReason).HasConversion<string>().HasMaxLength(32);

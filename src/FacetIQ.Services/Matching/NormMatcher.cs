@@ -27,8 +27,7 @@ public sealed class NormMatcher : INormMatcher
     /// </summary>
     private static bool Applies(Norm norm, DisclosureRequest request) =>
         (norm.Relationship is null || Matches(norm.Relationship, request.Relationship)) &&
-        (norm.Purpose is null || norm.Purpose == request.Purpose) &&
-        (norm.Channel is null || norm.Channel == request.Channel);
+        (norm.Purpose is null || norm.Purpose == request.Purpose);
 
     private static bool Matches(string condition, string? value) =>
         string.Equals(condition, value, StringComparison.OrdinalIgnoreCase);
@@ -41,6 +40,5 @@ public sealed class NormMatcher : INormMatcher
     /// </summary>
     private static int Specificity(Norm norm) =>
         (norm.Relationship is null ? 0 : 1) +
-        (norm.Purpose is null ? 0 : 1) +
-        (norm.Channel is null ? 0 : 1);
+        (norm.Purpose is null ? 0 : 1);
 }

@@ -23,6 +23,7 @@ public static class DataLayerExtensions
                 .MigrationsAssembly(typeof(FacetIQDbContext).Assembly.FullName)));
 
         services.AddScoped<INormRepository, NormRepository>();
+        services.AddScoped<ISubjectRepository, SubjectRepository>();
         services.AddScoped<IAttributeRepository, AttributeRepository>();
         services.AddScoped<IAuditRecordRepository, AuditRecordRepository>();
 

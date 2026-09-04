@@ -56,7 +56,11 @@ public static class SeedData
             SubjectId = SubjectId,
             Key = "dateOfBirth",
             Value = "1994-03-11",
-            Label = "legal"
+            Label = "legal",
+
+            // Given for a social context. The subject still wrote a norm releasing the exact
+            // date for regulatory requests, and the collection purpose is what overrides it.
+            CollectedFor = Purpose.Social
         }
     ];
 

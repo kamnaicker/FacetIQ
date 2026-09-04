@@ -13,6 +13,12 @@ public sealed record DisclosureResult
 
     public string? Value { get; init; }
 
+    /// <summary>
+    /// Set only on self-access, where the whole set is released rather than one selection.
+    /// The norm path never populates it.
+    /// </summary>
+    public IReadOnlyList<string>? Values { get; init; }
+
     public DenyReasonCode? DenyReason { get; init; }
 
     public Norm? Norm { get; init; }
@@ -33,5 +39,15 @@ public sealed record DisclosureResult
         Outcome = norm.Transform == TransformKind.None ? ActionType.Return : ActionType.Transform,
         Value = value,
         Norm = norm
+    };
+
+    /// <summary>
+    /// A subject reading their own claims receives all of them, untransformed and with no norm
+    /// consulted. A right of access is not something the subject's own rules can narrow.
+    /// </summary>
+    public static DisclosureResult SelfAccess(IReadOnlyList<string> values) => new()
+    {
+        Outcome = ActionType.Return,
+        Values = values
     };
 }
