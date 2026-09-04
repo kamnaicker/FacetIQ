@@ -21,7 +21,7 @@ public class DisclosureEvaluatorTests
     private static readonly SubjectAttribute LegalName = Claim("name", "Amara Chidinma Nwosu", "legal");
     private static readonly SubjectAttribute ProfessionalName = Claim("name", "Dr Amara Nwosu", "professional");
     private static readonly SubjectAttribute SocialName = Claim("name", "Amara", "social");
-    private static readonly SubjectAttribute DateOfBirth = Claim("dateOfBirth", "1994-03-11", "legal");
+    private static readonly SubjectAttribute DateOfBirth = Claim("dateOfBirth", "1994-03-11", "legal", Purpose.Social);
 
     /// <summary>Held by the test rather than taken from the evaluator, so a replay is independent.</summary>
     private static readonly TransformService Transforms = new();
@@ -141,6 +141,22 @@ public class DisclosureEvaluatorTests
         Assert.Equal("Dr Amara Nwosu", result.Value);
     }
 
+    /// <summary>
+    /// O2: a claim collected for one purpose is not released for another, even where the subject
+    /// wrote a norm permitting exactly this request. The norm matches and is still overridden.
+    /// </summary>
+    [Fact]
+    public async Task ClaimCollectedForAnotherPurpose_IsRefused()
+    {
+        var norms = new[] { Rule(DateOfBirth, purpose: Purpose.Regulatory) };
+
+        var result = await Evaluate(norms, Ask("dateOfBirth", Purpose.Regulatory));
+
+        Assert.Equal(ActionType.Deny, result.Outcome);
+        Assert.Equal(DenyReasonCode.PurposeIncompatible, result.DenyReason);
+        Assert.Null(result.Value);
+    }
+
     /// <summary>O7: absence of an applicable norm is a refusal, never a best guess.</summary>
     [Fact]
     public async Task NoApplicableNorm_IsRefused()
@@ -250,13 +266,18 @@ public class DisclosureEvaluatorTests
     private static DisclosureRequest Ask(string key, Purpose purpose, string? relationship = null) =>
         new(SubjectId, key, RequesterUserId, relationship, purpose, RequestChannel.Api);
 
-    private static SubjectAttribute Claim(string key, string value, string label) => new()
+    private static SubjectAttribute Claim(
+        string key,
+        string value,
+        string label,
+        Purpose? collectedFor = null) => new()
     {
         Id = Guid.NewGuid(),
         SubjectId = SubjectId,
         Key = key,
         Value = value,
-        Label = label
+        Label = label,
+        CollectedFor = collectedFor
     };
 
     private static Norm Rule(

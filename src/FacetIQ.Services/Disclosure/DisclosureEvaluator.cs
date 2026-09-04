@@ -79,17 +79,20 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         {
             SelectionOutcome.NoMatch => DisclosureResult.Denied(DenyReasonCode.NoMatchingNorm),
             SelectionOutcome.Ambiguous => DisclosureResult.Denied(DenyReasonCode.AmbiguousNorms),
-            SelectionOutcome.Selected => await ResolveAsync(selection.Norm!, cancellationToken),
+            SelectionOutcome.Selected => await ResolveAsync(selection.Norm!, request.Purpose, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(selection), selection.Outcome, "Unhandled selection.")
         };
     }
 
     /// <summary>
     /// Selection is already complete: the norm names the claim to disclose and the form to
-    /// disclose it in. Nothing below this point consults the request, so context cannot be
-    /// revisited once it has been decided.
+    /// disclose it in. Only the purpose travels this far, and only to test it against the
+    /// claim's collection limit, so matching cannot be revisited once it has been decided.
     /// </summary>
-    private async Task<DisclosureResult> ResolveAsync(Norm norm, CancellationToken cancellationToken)
+    private async Task<DisclosureResult> ResolveAsync(
+        Norm norm,
+        Purpose purpose,
+        CancellationToken cancellationToken)
     {
         if (norm.Action == ActionType.Deny)
         {
@@ -101,6 +104,15 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         if (claim is null)
         {
             return DisclosureResult.Denied(DenyReasonCode.ClaimUnavailable, norm);
+        }
+
+        // A claim collected for one purpose is not released for another. This is the only
+        // point the engine refuses what the subject's own norm permits: a purpose limit is
+        // undertaken at collection, and a later rule cannot dissolve it. The norm travels
+        // with the refusal so the record shows which permission was overridden.
+        if (claim.CollectedFor is not null && claim.CollectedFor != purpose)
+        {
+            return DisclosureResult.Denied(DenyReasonCode.PurposeIncompatible, norm);
         }
 
         var value = _transforms.Apply(norm.Transform, norm.TransformParameter, claim.Value);
