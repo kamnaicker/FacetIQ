@@ -15,6 +15,8 @@ public class FacetIQDbContext : DbContext
 
     public DbSet<Norm> Norms => Set<Norm>();
 
+    public DbSet<Standing> Standings => Set<Standing>();
+
     public DbSet<AuditRecord> AuditRecords => Set<AuditRecord>();
 
     protected override void OnModelCreating(ModelBuilder mb)

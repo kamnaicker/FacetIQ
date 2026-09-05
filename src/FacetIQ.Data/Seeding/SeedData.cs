@@ -19,6 +19,13 @@ public static class SeedData
     public static readonly Guid SocialName = new("0a5f4d8e-0000-4000-8000-000000000012");
     public static readonly Guid DateOfBirth = new("0a5f4d8e-0000-4000-8000-000000000013");
 
+    public static readonly Guid AcceptedColleague = new("0a5f4d8e-0000-4000-8000-000000000030");
+    public static readonly Guid PendingColleague = new("0a5f4d8e-0000-4000-8000-000000000031");
+
+    // Fixed so the seed is deterministic: a clock read here would rewrite the migration on
+    // every scaffold.
+    private static readonly DateTimeOffset SeededAt = new(2026, 8, 1, 9, 0, 0, TimeSpan.Zero);
+
     public static Subject[] Subjects { get; } =
     [
         new Subject { Id = SubjectId, UserId = "seed-amara" }
@@ -61,6 +68,40 @@ public static class SeedData
             // Given for a social context. The subject still wrote a norm releasing the exact
             // date for regulatory requests, and the collection purpose is what overrides it.
             CollectedFor = Purpose.Social
+        }
+    ];
+
+    /// <summary>
+    /// Two requesters differing in one thing only. Both hold a colleague standing towards Amara;
+    /// one was accepted and one never was. Nothing else separates them, so any difference in what
+    /// they receive is attributable to the acceptance alone.
+    /// </summary>
+    public static Standing[] Standings { get; } =
+    [
+        new Standing
+        {
+            Id = AcceptedColleague,
+            SubjectId = SubjectId,
+            RequesterUserId = "seed-colleague-accepted",
+            Value = "colleague",
+            IssuerKind = IssuerKind.Institution,
+            Issuer = "Example Teaching Hospital",
+            IssuedAt = SeededAt,
+            AcceptedAt = SeededAt
+        },
+        new Standing
+        {
+            Id = PendingColleague,
+            SubjectId = SubjectId,
+            RequesterUserId = "seed-colleague-pending",
+            Value = "colleague",
+            IssuerKind = IssuerKind.Subject,
+
+            // Amara asserting a colleague relationship about someone else. It stays inert until
+            // they accept, which is what stops her placing a person in a context unilaterally.
+            Issuer = "seed-amara",
+            IssuedAt = SeededAt,
+            AcceptedAt = null
         }
     ];
 

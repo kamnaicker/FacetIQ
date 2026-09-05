@@ -3,6 +3,7 @@ using System;
 using FacetIQ.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FacetIQ.Data.Migrations.App
 {
     [DbContext(typeof(FacetIQDbContext))]
-    partial class FacetIQDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260904201931_AddStanding")]
+    partial class AddStanding
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -245,29 +248,6 @@ namespace FacetIQ.Data.Migrations.App
                     b.HasIndex("SubjectId", "RequesterUserId");
 
                     b.ToTable("standings", "app");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("0a5f4d8e-0000-4000-8000-000000000030"),
-                            AcceptedAt = new DateTimeOffset(new DateTime(2026, 8, 1, 9, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            IssuedAt = new DateTimeOffset(new DateTime(2026, 8, 1, 9, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Issuer = "Example Teaching Hospital",
-                            IssuerKind = "Institution",
-                            RequesterUserId = "seed-colleague-accepted",
-                            SubjectId = new Guid("0a5f4d8e-0000-4000-8000-000000000001"),
-                            Value = "colleague"
-                        },
-                        new
-                        {
-                            Id = new Guid("0a5f4d8e-0000-4000-8000-000000000031"),
-                            IssuedAt = new DateTimeOffset(new DateTime(2026, 8, 1, 9, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Issuer = "seed-amara",
-                            IssuerKind = "Subject",
-                            RequesterUserId = "seed-colleague-pending",
-                            SubjectId = new Guid("0a5f4d8e-0000-4000-8000-000000000001"),
-                            Value = "colleague"
-                        });
                 });
 
             modelBuilder.Entity("FacetIQ.Domain.Entities.Subject", b =>
