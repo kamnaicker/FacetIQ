@@ -9,5 +9,12 @@ namespace FacetIQ.Domain.Abstractions.Services;
 /// </summary>
 public interface INormMatcher
 {
-    IReadOnlyList<NormCandidate> Match(IReadOnlyList<Norm> norms, DisclosureRequest request);
+    /// <param name="standings">
+    /// The relationship terms the requester holds by accepted standing. Resolved by the caller,
+    /// never taken from the request, which is why it arrives as a separate argument.
+    /// </param>
+    IReadOnlyList<NormCandidate> Match(
+        IReadOnlyList<Norm> norms,
+        DisclosureRequest request,
+        IReadOnlySet<string> standings);
 }

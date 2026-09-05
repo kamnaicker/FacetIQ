@@ -62,7 +62,7 @@ public class DisclosureEvaluatorTests
         };
 
         var regulatory = await Evaluate(norms, Ask("name", Purpose.Regulatory));
-        var clinical = await Evaluate(norms, Ask("name", Purpose.Clinical, "colleague"));
+        var clinical = await Evaluate(norms, Ask("name", Purpose.Clinical), standings: [Held("colleague")]);
         var social = await Evaluate(norms, Ask("name", Purpose.Social));
 
         Assert.Equal("Amara Chidinma Nwosu", regulatory.Value);
@@ -85,7 +85,7 @@ public class DisclosureEvaluatorTests
         };
 
         var withoutRelationship = await Evaluate(norms, Ask("name", Purpose.Clinical));
-        var asColleague = await Evaluate(norms, Ask("name", Purpose.Clinical, "colleague"));
+        var asColleague = await Evaluate(norms, Ask("name", Purpose.Clinical), standings: [Held("colleague")]);
 
         Assert.Equal("Amara", withoutRelationship.Value);
         Assert.Equal("Dr Amara Nwosu", asColleague.Value);
@@ -101,7 +101,7 @@ public class DisclosureEvaluatorTests
             Rule(SocialName, relationship: "friend")
         };
 
-        var result = await Evaluate(norms, Ask("name", Purpose.Social, "friend"));
+        var result = await Evaluate(norms, Ask("name", Purpose.Social), standings: [Held("friend")]);
 
         Assert.Equal(ActionType.Deny, result.Outcome);
         Assert.Equal(DenyReasonCode.AmbiguousNorms, result.DenyReason);
@@ -136,9 +136,62 @@ public class DisclosureEvaluatorTests
             Rule(ProfessionalName, purpose: Purpose.Clinical, relationship: "colleague")
         };
 
-        var result = await Evaluate(norms, Ask("name", Purpose.Clinical, "colleague"));
+        var result = await Evaluate(norms, Ask("name", Purpose.Clinical), standings: [Held("colleague")]);
 
         Assert.Equal("Dr Amara Nwosu", result.Value);
+    }
+
+    /// <summary>
+    /// Standings resolve to a set, so a requester holds several at once and a norm bound to any
+    /// one of them applies. The old request contract carried a single relationship string, which
+    /// forced a person into one context per request; people are not so tidily divided.
+    /// </summary>
+    [Fact]
+    public async Task NormBoundToOneHeldStanding_AppliesWhenSeveralAreHeld()
+    {
+        var norms = new[] { Rule(ProfessionalName, purpose: Purpose.Clinical, relationship: "colleague") };
+
+        var result = await Evaluate(
+            norms,
+            Ask("name", Purpose.Clinical),
+            standings: [Held("friend"), Held("colleague")]);
+
+        Assert.Equal("Dr Amara Nwosu", result.Value);
+    }
+
+    /// <summary>
+    /// Only an accepted standing reaches matching. A requester holding one that was issued but
+    /// never agreed to is indistinguishable from a requester holding nothing at all, which is what
+    /// makes the acceptance load-bearing rather than a record of someone's intent.
+    ///
+    /// That the request body cannot reach the first outcome is enforced by the contract rather than
+    /// asserted here -- relationship is not a field on <see cref="DisclosureRequest"/>, so a caller
+    /// has no way to express it.
+    /// </summary>
+    [Fact]
+    public async Task AcceptedStanding_UnlocksTheNorm_PendingAndAbsentDoNot()
+    {
+        var norms = new[]
+        {
+            Rule(SocialName),
+            Rule(ProfessionalName, purpose: Purpose.Clinical, relationship: "colleague")
+        };
+
+        var accepted = await Evaluate(
+            norms,
+            Ask("name", Purpose.Clinical),
+            standings: [Held("colleague")]);
+
+        var pending = await Evaluate(
+            norms,
+            Ask("name", Purpose.Clinical),
+            standings: [Held("colleague", accepted: false)]);
+
+        var absent = await Evaluate(norms, Ask("name", Purpose.Clinical));
+
+        Assert.Equal("Dr Amara Nwosu", accepted.Value);
+        Assert.Equal("Amara", pending.Value);
+        Assert.Equal("Amara", absent.Value);
     }
 
     /// <summary>
@@ -247,13 +300,15 @@ public class DisclosureEvaluatorTests
         Norm[] norms,
         DisclosureRequest request,
         RecordingAuditRepository? audit = null,
-        Subject? owner = null)
+        Subject? owner = null,
+        Standing[]? standings = null)
     {
         audit ??= new RecordingAuditRepository();
 
         var evaluator = new DisclosureEvaluator(
             new InMemorySubjectRepository(owner),
             new InMemoryNormRepository(norms),
+            new InMemoryStandingRepository(standings ?? []),
             new InMemoryAttributeRepository(LegalName, ProfessionalName, SocialName, DateOfBirth),
             new NormMatcher(),
             new SpecificityRanker(),
@@ -263,8 +318,21 @@ public class DisclosureEvaluatorTests
         return await evaluator.EvaluateAsync(request, CancellationToken.None);
     }
 
-    private static DisclosureRequest Ask(string key, Purpose purpose, string? relationship = null) =>
-        new(SubjectId, key, RequesterUserId, relationship, purpose, RequestChannel.Api);
+    private static DisclosureRequest Ask(string key, Purpose purpose) =>
+        new(SubjectId, key, RequesterUserId, purpose, RequestChannel.Api);
+
+    /// <summary>An accepted standing. Pass <c>accepted: false</c> for one that was never agreed to.</summary>
+    private static Standing Held(string value, bool accepted = true) => new()
+    {
+        Id = Guid.NewGuid(),
+        SubjectId = SubjectId,
+        RequesterUserId = RequesterUserId,
+        Value = value,
+        IssuerKind = IssuerKind.Institution,
+        Issuer = "Example Teaching Hospital",
+        IssuedAt = DateTimeOffset.UnixEpoch,
+        AcceptedAt = accepted ? DateTimeOffset.UnixEpoch : null
+    };
 
     private static SubjectAttribute Claim(
         string key,

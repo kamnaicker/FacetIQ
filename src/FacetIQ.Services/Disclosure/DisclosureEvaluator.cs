@@ -14,6 +14,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
 {
     private readonly ISubjectRepository _subjects;
     private readonly INormRepository _norms;
+    private readonly IStandingRepository _standings;
     private readonly IAttributeRepository _attributes;
     private readonly INormMatcher _matcher;
     private readonly ISpecificityRanker _ranker;
@@ -23,6 +24,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
     public DisclosureEvaluator(
         ISubjectRepository subjects,
         INormRepository norms,
+        IStandingRepository standings,
         IAttributeRepository attributes,
         INormMatcher matcher,
         ISpecificityRanker ranker,
@@ -31,6 +33,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
     {
         _subjects = subjects;
         _norms = norms;
+        _standings = standings;
         _attributes = attributes;
         _matcher = matcher;
         _ranker = ranker;
@@ -72,7 +75,8 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         CancellationToken cancellationToken)
     {
         var governing = await _norms.GetGoverningNormsAsync(request.SubjectId, request.AttributeKey, cancellationToken);
-        var candidates = _matcher.Match(governing, request);
+        var standings = await ResolveStandingsAsync(request, cancellationToken);
+        var candidates = _matcher.Match(governing, request, standings);
         var selection = _ranker.Select(candidates);
 
         return selection.Outcome switch
@@ -82,6 +86,25 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
             SelectionOutcome.Selected => await ResolveAsync(selection.Norm!, request.Purpose, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(selection), selection.Outcome, "Unhandled selection.")
         };
+    }
+
+    /// <summary>
+    /// The relationship terms a requester holds, read from accepted standings rather than from
+    /// anything they sent. A requester who holds none still matches every wildcard norm, which
+    /// is most of them; they simply cannot reach one written about a relationship.
+    /// </summary>
+    private async Task<IReadOnlySet<string>> ResolveStandingsAsync(
+        DisclosureRequest request,
+        CancellationToken cancellationToken)
+    {
+        var accepted = await _standings.GetAcceptedAsync(
+            request.SubjectId,
+            request.RequesterUserId,
+            cancellationToken);
+
+        return accepted
+            .Select(standing => standing.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

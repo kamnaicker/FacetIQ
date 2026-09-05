@@ -22,7 +22,4 @@ public sealed record DisclosureRequestDto
     [Required]
     [StringLength(32)]
     public required string Purpose { get; init; }
-
-    [StringLength(64)]
-    public string? Relationship { get; init; }
 }

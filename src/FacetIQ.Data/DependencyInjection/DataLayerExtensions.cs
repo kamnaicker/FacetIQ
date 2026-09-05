@@ -24,6 +24,7 @@ public static class DataLayerExtensions
 
         services.AddScoped<INormRepository, NormRepository>();
         services.AddScoped<ISubjectRepository, SubjectRepository>();
+        services.AddScoped<IStandingRepository, StandingRepository>();
         services.AddScoped<IAttributeRepository, AttributeRepository>();
         services.AddScoped<IAuditRecordRepository, AuditRecordRepository>();
 

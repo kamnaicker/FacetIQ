@@ -27,7 +27,6 @@ public static class DisclosureMapper
             dto.SubjectId,
             dto.AttributeKey,
             requesterUserId,
-            dto.Relationship,
             purpose,
             channel);
 
