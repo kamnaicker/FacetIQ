@@ -26,4 +26,11 @@ public sealed class AttributeRepository : IAttributeRepository
             .Where(attribute => attribute.SubjectId == subjectId && attribute.Key == key)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task AddAsync(SubjectAttribute attribute, CancellationToken cancellationToken)
+    {
+        _context.SubjectAttributes.Add(attribute);
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

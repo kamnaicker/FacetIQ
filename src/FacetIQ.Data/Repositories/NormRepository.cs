@@ -26,4 +26,23 @@ public sealed class NormRepository : INormRepository
                 norm.Attribute.Key == attributeKey)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Norm>> ListGoverningAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Norms
+            .AsNoTracking()
+            .Where(norm =>
+                norm.SubjectId == subjectId &&
+                norm.SupersededAt == null)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddAsync(Norm norm, CancellationToken cancellationToken)
+    {
+        _context.Norms.Add(norm);
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

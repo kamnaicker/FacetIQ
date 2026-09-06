@@ -15,4 +15,7 @@ internal sealed class InMemorySubjectRepository : ISubjectRepository
 
     public Task<Subject?> FindAsync(Guid subjectId, CancellationToken cancellationToken) =>
         Task.FromResult(_subject?.Id == subjectId ? _subject : null);
+
+    public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
+        Task.FromResult(_subject?.UserId == userId ? _subject : null);
 }

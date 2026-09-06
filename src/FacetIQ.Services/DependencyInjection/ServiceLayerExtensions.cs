@@ -1,5 +1,6 @@
 using FacetIQ.Domain.Abstractions.Services;
 using FacetIQ.Services.Auditing;
+using FacetIQ.Services.Authoring;
 using FacetIQ.Services.Disclosure;
 using FacetIQ.Services.Matching;
 using FacetIQ.Services.Transformation;
@@ -16,6 +17,7 @@ public static class ServiceLayerExtensions
         services.AddSingleton<INormMatcher, NormMatcher>();
         services.AddSingleton<ISpecificityRanker, SpecificityRanker>();
         services.AddSingleton<ITransformService, TransformService>();
+        services.AddSingleton<IConflictDetector, ConflictDetector>();
         services.AddSingleton(TimeProvider.System);
 
         services.AddScoped<IAuditWriter, AuditWriter>();

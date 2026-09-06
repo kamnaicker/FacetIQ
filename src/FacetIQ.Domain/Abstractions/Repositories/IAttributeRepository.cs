@@ -14,4 +14,10 @@ public interface IAttributeRepository
         Guid subjectId,
         string key,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Stores a claim the subject has authored. Nothing is derived from it and nothing replaces
+    /// an existing claim: a new name is an addition to the set, not a correction of it.
+    /// </summary>
+    Task AddAsync(SubjectAttribute attribute, CancellationToken cancellationToken);
 }

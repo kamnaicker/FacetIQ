@@ -9,9 +9,9 @@ namespace FacetIQ.Services.Tests;
 /// </summary>
 internal sealed class InMemoryNormRepository : INormRepository
 {
-    private readonly IReadOnlyList<Norm> _norms;
+    private readonly List<Norm> _norms;
 
-    public InMemoryNormRepository(params Norm[] norms) => _norms = norms;
+    public InMemoryNormRepository(params Norm[] norms) => _norms = [.. norms];
 
     public Task<IReadOnlyList<Norm>> GetGoverningNormsAsync(
         Guid subjectId,
@@ -26,5 +26,25 @@ internal sealed class InMemoryNormRepository : INormRepository
             .ToList();
 
         return Task.FromResult(governing);
+    }
+
+    public Task<IReadOnlyList<Norm>> ListGoverningAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Norm> governing = _norms
+            .Where(norm =>
+                norm.SubjectId == subjectId &&
+                norm.SupersededAt is null)
+            .ToList();
+
+        return Task.FromResult(governing);
+    }
+
+    public Task AddAsync(Norm norm, CancellationToken cancellationToken)
+    {
+        _norms.Add(norm);
+
+        return Task.CompletedTask;
     }
 }

@@ -5,9 +5,9 @@ namespace FacetIQ.Services.Tests;
 
 internal sealed class InMemoryAttributeRepository : IAttributeRepository
 {
-    private readonly IReadOnlyList<SubjectAttribute> _attributes;
+    private readonly List<SubjectAttribute> _attributes;
 
-    public InMemoryAttributeRepository(params SubjectAttribute[] attributes) => _attributes = attributes;
+    public InMemoryAttributeRepository(params SubjectAttribute[] attributes) => _attributes = [.. attributes];
 
     public Task<SubjectAttribute?> FindAsync(Guid attributeId, CancellationToken cancellationToken) =>
         Task.FromResult(_attributes.SingleOrDefault(attribute => attribute.Id == attributeId));
@@ -20,4 +20,11 @@ internal sealed class InMemoryAttributeRepository : IAttributeRepository
             _attributes
                 .Where(attribute => attribute.SubjectId == subjectId && attribute.Key == key)
                 .ToList());
+
+    public Task AddAsync(SubjectAttribute attribute, CancellationToken cancellationToken)
+    {
+        _attributes.Add(attribute);
+
+        return Task.CompletedTask;
+    }
 }
