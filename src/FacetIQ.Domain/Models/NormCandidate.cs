@@ -1,5 +1,6 @@
+using FacetIQ.Domain.Entities;
+
 namespace FacetIQ.Domain.Models;
 
-public class NormCandidate
-{
-}
+/// <summary>A norm that matched a request, paired with the specificity it matched at.</summary>
+public sealed record NormCandidate(Norm Norm, int Specificity);

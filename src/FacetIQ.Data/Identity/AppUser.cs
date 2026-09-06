@@ -3,8 +3,5 @@
 namespace FacetIQ.Data.Identity
 {
     public class AppUser:IdentityUser
-    {
-        public AppUser() 
-        {}
-    }
+    {}
 }

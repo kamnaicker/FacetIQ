@@ -1,6 +1,10 @@
+using FacetIQ.API.Authorization;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
+using FacetIQ.Data.Seeding;
+using FacetIQ.Services.DependencyInjection;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -13,11 +17,19 @@ string cs = builder.Configuration.GetConnectionString("DefaultConnection")
 
 // Add services to the container.
 builder.Services.AddDataLayer(cs);
+builder.Services.AddServiceLayer();
 
 builder.Services
     .AddIdentityApiEndpoints<AppUser>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AuthDbContext>();
+
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
+
+builder.Services.AddScoped<IAuthorizationHandler, RequesterClaimsHandler>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -28,7 +40,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 
     app.MapScalarApiReference(options =>
     {
@@ -37,14 +49,24 @@ if (app.Environment.IsDevelopment())
 
         // Optional custom styling configuration
         options.WithTheme(ScalarTheme.DeepSpace);
-    });
+    }).AllowAnonymous();
+
+    // The seeded worked example names its people by user identifier; these are the accounts that
+    // bear them, so the example can be signed into rather than only read about. Seeding only:
+    // migrations are still applied deliberately, never on startup.
+    await app.Services.SeedDevelopmentUsersAsync();
 }
 
 app.UseHttpsRedirection();
 
+// Authentication populates the principal that authorization then evaluates. The order is
+// load-bearing: reversed, every request is anonymous and the fallback policy refuses it.
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapIdentityApi<AppUser>();
+// Credentials cannot be required to obtain credentials, so these endpoints opt out of the
+// fallback policy.
+app.MapIdentityApi<AppUser>().AllowAnonymous();
 
 app.MapControllers();
 
