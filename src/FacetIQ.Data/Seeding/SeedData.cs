@@ -22,13 +22,25 @@ public static class SeedData
     public static readonly Guid AcceptedColleague = new("0a5f4d8e-0000-4000-8000-000000000030");
     public static readonly Guid PendingColleague = new("0a5f4d8e-0000-4000-8000-000000000031");
 
+    /// <summary>
+    /// The people the rows below are about, named by user identifier. These are also the ids of
+    /// the accounts <see cref="DevelopmentUserSeeder"/> creates, so the worked example can be
+    /// signed into rather than only read about. Constants because two places must agree on them
+    /// exactly, and a typo would present as a requester who mysteriously holds no standing.
+    /// </summary>
+    public const string AmaraUserId = "seed-amara";
+
+    public const string AcceptedColleagueUserId = "seed-colleague-accepted";
+
+    public const string PendingColleagueUserId = "seed-colleague-pending";
+
     // Fixed so the seed is deterministic: a clock read here would rewrite the migration on
     // every scaffold.
     private static readonly DateTimeOffset SeededAt = new(2026, 8, 1, 9, 0, 0, TimeSpan.Zero);
 
     public static Subject[] Subjects { get; } =
     [
-        new Subject { Id = SubjectId, UserId = "seed-amara" }
+        new Subject { Id = SubjectId, UserId = AmaraUserId }
     ];
 
     public static SubjectAttribute[] Attributes { get; } =
@@ -82,7 +94,7 @@ public static class SeedData
         {
             Id = AcceptedColleague,
             SubjectId = SubjectId,
-            RequesterUserId = "seed-colleague-accepted",
+            RequesterUserId = AcceptedColleagueUserId,
             Value = "colleague",
             IssuerKind = IssuerKind.Institution,
             Issuer = "Example Teaching Hospital",
@@ -93,13 +105,13 @@ public static class SeedData
         {
             Id = PendingColleague,
             SubjectId = SubjectId,
-            RequesterUserId = "seed-colleague-pending",
+            RequesterUserId = PendingColleagueUserId,
             Value = "colleague",
             IssuerKind = IssuerKind.Subject,
 
             // Amara asserting a colleague relationship about someone else. It stays inert until
             // they accept, which is what stops her placing a person in a context unilaterally.
-            Issuer = "seed-amara",
+            Issuer = AmaraUserId,
             IssuedAt = SeededAt,
             AcceptedAt = null
         }

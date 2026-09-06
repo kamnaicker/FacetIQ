@@ -2,6 +2,7 @@ using FacetIQ.API.Authorization;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
+using FacetIQ.Data.Seeding;
 using FacetIQ.Services.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -49,6 +50,11 @@ if (app.Environment.IsDevelopment())
         // Optional custom styling configuration
         options.WithTheme(ScalarTheme.DeepSpace);
     }).AllowAnonymous();
+
+    // The seeded worked example names its people by user identifier; these are the accounts that
+    // bear them, so the example can be signed into rather than only read about. Seeding only:
+    // migrations are still applied deliberately, never on startup.
+    await app.Services.SeedDevelopmentUsersAsync();
 }
 
 app.UseHttpsRedirection();
