@@ -16,6 +16,14 @@ public interface IAttributeRepository
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Every claim a subject holds, across all keys. What the subject sees when reading back
+    /// their own profile, where the whole set matters rather than one kind of claim.
+    /// </summary>
+    Task<IReadOnlyList<SubjectAttribute>> ListBySubjectAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Stores a claim the subject has authored. Nothing is derived from it and nothing replaces
     /// an existing claim: a new name is an addition to the set, not a correction of it.
     /// </summary>

@@ -27,6 +27,16 @@ public sealed class AttributeRepository : IAttributeRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<SubjectAttribute>> ListBySubjectAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.SubjectAttributes
+            .AsNoTracking()
+            .Where(attribute => attribute.SubjectId == subjectId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(SubjectAttribute attribute, CancellationToken cancellationToken)
     {
         _context.SubjectAttributes.Add(attribute);
