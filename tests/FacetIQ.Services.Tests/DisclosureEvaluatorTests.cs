@@ -160,13 +160,11 @@ public class DisclosureEvaluatorTests
     }
 
     /// <summary>
-    /// Only an accepted standing reaches matching. A requester holding one that was issued but
-    /// never agreed to is indistinguishable from a requester holding nothing at all, which is what
-    /// makes the acceptance load-bearing rather than a record of someone's intent.
+    /// Only an accepted standing reaches matching. A requester holding one never agreed to is
+    /// indistinguishable from one holding nothing, which is what makes acceptance load-bearing.
     ///
-    /// That the request body cannot reach the first outcome is enforced by the contract rather than
-    /// asserted here -- relationship is not a field on <see cref="DisclosureRequest"/>, so a caller
-    /// has no way to express it.
+    /// That the body cannot reach the first outcome is enforced by the contract, not asserted
+    /// here: relationship is not a field on <see cref="DisclosureRequest"/>.
     /// </summary>
     [Fact]
     public async Task AcceptedStanding_UnlocksTheNorm_PendingAndAbsentDoNot()

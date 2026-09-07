@@ -7,12 +7,8 @@ namespace FacetIQ.API.Mapping;
 public static class AttributeMapper
 {
     /// <summary>
-    /// Builds the domain claim from the contract and the authenticated subject. The collection
-    /// purpose is parsed rather than model-bound so an unrecognised value is refused at the
-    /// boundary instead of arriving as a default, which is how the other two mappers treat theirs.
-    ///
-    /// An absent purpose is a claim collected under no stated limit, which is a different thing
-    /// from an unrecognised one and succeeds.
+    /// The collection purpose is parsed rather than model-bound, as in the other two mappers.
+    /// An absent purpose is no stated limit and succeeds; only an unrecognised one fails.
     /// </summary>
     public static bool TryToDomain(
         CreateAttributeRequest dto,

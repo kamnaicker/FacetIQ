@@ -27,9 +27,9 @@ public sealed class ConflictDetector : IConflictDetector
     }
 
     /// <summary>
-    /// Whether one request could satisfy both norms at once. A null condition is a wildcard and
-    /// intersects anything; two bound conditions intersect only where they agree. Relationship is
-    /// compared case-insensitively, matching how matching tests it against held standings.
+    /// Whether one request could satisfy both norms. A null condition is a wildcard and intersects
+    /// anything. Relationship is compared case-insensitively, as matching tests it against
+    /// held standings.
     /// </summary>
     private static bool CoMatchable(Norm a, Norm b) =>
         CanIntersect(a.Relationship, b.Relationship) &&
@@ -43,10 +43,8 @@ public sealed class ConflictDetector : IConflictDetector
         a is null || b is null || a == b;
 
     /// <summary>
-    /// Whether the two norms would release different things. The action alone is not enough: two
-    /// norms can both return and still select different claims, and a name disclosed in the wrong
-    /// register is the disagreement this project is actually about. The transform and its argument
-    /// are compared for the same reason -- an age band and an exact date are both a return.
+    /// Whether the two would release different things. The action alone is not enough: two norms
+    /// can both return and still select different claims, or transform the same one differently.
     /// </summary>
     private static bool Disagree(Norm a, Norm b) =>
         a.AttributeId != b.AttributeId ||

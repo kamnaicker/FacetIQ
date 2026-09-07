@@ -14,15 +14,11 @@ public interface INormRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Every norm the subject currently has in force, across all keys. Superseded revisions are
-    /// excluded for the same reason as above: conflict detection compares a proposed norm against
-    /// the rules that could actually govern a request, and a retired one cannot.
+    /// Every norm the subject has in force, across all keys. Superseded revisions are excluded
+    /// for the same reason as above.
     /// </summary>
     Task<IReadOnlyList<Norm>> ListGoverningAsync(Guid subjectId, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Stores a newly authored norm. Detecting conflicts is the caller's job and happens first:
-    /// a norm that collides is never offered here.
-    /// </summary>
+    /// <summary>Detecting conflicts is the caller's job and happens first.</summary>
     Task AddAsync(Norm norm, CancellationToken cancellationToken);
 }

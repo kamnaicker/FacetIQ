@@ -8,17 +8,13 @@ namespace FacetIQ.API.Mapping;
 public static class NormMapper
 {
     /// <summary>
-    /// Builds the domain norm from the contract and the authenticated subject. Enums are parsed
-    /// rather than model-bound so an unrecognised value is refused at the boundary instead of
-    /// arriving as a default, which is how DisclosureMapper already treats purpose.
-    ///
-    /// The action is derived from the transform and the deny reason rather than accepted from the
-    /// caller, on the same reasoning as <see cref="DisclosureResult.Disclosed"/>: stated
-    /// separately it could contradict them, and there is no sensible way to resolve that.
+    /// Enums are parsed rather than model-bound, so an unrecognised value is refused at the
+    /// boundary instead of arriving as a default. The action is derived from the transform and
+    /// deny reason, as <see cref="DisclosureResult.Disclosed"/> derives its outcome.
     /// </summary>
     /// <param name="invalidMember">
-    /// Which field was not recognised, so the refusal can name it. Three fields here can fail,
-    /// unlike the other two mappers where only one can, which is why this one has to report it.
+    /// Which field was not recognised, so the refusal can name it. Three can fail here, unlike
+    /// the other mappers.
     /// </param>
     public static bool TryToDomain(
         CreateNormRequest dto,
@@ -99,10 +95,7 @@ public static class NormMapper
             : transform is not null && transform != TransformKind.None ? ActionType.Transform
             : ActionType.Return;
 
-    /// <summary>
-    /// An absent value is a wildcard and parses successfully to null. Only a value that is
-    /// present and unrecognised is a failure.
-    /// </summary>
+    /// <summary>An absent value is a wildcard and succeeds as null; only a present one can fail.</summary>
     private static bool TryParseOptional<T>(string? value, out T? parsed) where T : struct, Enum
     {
         if (value is null)

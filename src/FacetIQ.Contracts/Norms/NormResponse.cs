@@ -1,9 +1,8 @@
 namespace FacetIQ.Contracts.Norms;
 
 /// <summary>
-/// A norm as its author sees it. Specificity travels with it because a subject deciding whether
-/// to add a rule needs to know how it will rank against the ones already written, and that score
-/// is not obvious from reading the conditions back.
+/// A norm as its author sees it. Specificity travels with it so a subject can tell how a rule
+/// will rank against the ones already written.
 /// </summary>
 public sealed record NormResponse
 {

@@ -6,9 +6,8 @@ using FacetIQ.Services.Authoring;
 namespace FacetIQ.Services.Tests;
 
 /// <summary>
-/// The authoring half of the ambiguity story. The engine's matching tests assert what happens to
-/// a tie that already exists; these assert that the subject is told about it while they are still
-/// writing the rule, which is the only point at which they can do anything about it.
+/// The authoring half of the ambiguity story. The engine's tests assert what happens to a tie
+/// that already exists; these assert the subject is told while they can still act on it.
 /// </summary>
 public class ConflictDetectorTests
 {
@@ -19,12 +18,8 @@ public class ConflictDetectorTests
 
     /// <summary>
     /// O8: the pair from <c>EquallySpecificNorms_AreRefusedAsAmbiguous</c>, caught one step
-    /// earlier. A social request from a friend satisfies both, neither is more specific, and they
-    /// select different claims.
-    ///
-    /// Both norms return, so an implementation comparing only the action would call this agreement
-    /// and store the norm. What they disagree about is which name is released, which is the whole
-    /// subject of the project.
+    /// earlier. Both norms return, so comparing only the action would call this agreement and
+    /// store it. What they disagree about is which name is released.
     /// </summary>
     [Fact]
     public void EquallySpecificNorms_ThatSelectDifferentClaims_AreRefusedWhenAuthored()
@@ -45,9 +40,8 @@ public class ConflictDetectorTests
     }
 
     /// <summary>
-    /// O8: the control. Two norms of equal specificity whose conditions cannot both be satisfied
-    /// never compete, so equal scores alone are not a conflict. Without this, a detector that
-    /// refused every tie in score would pass the test above and still be wrong.
+    /// O8: the control. Equal scores alone are not a conflict. Without this, a detector refusing
+    /// every tie in score would pass the test above and still be wrong.
     /// </summary>
     [Fact]
     public void EquallySpecificNorms_WithDisjointConditions_AreAccepted()
@@ -59,13 +53,10 @@ public class ConflictDetectorTests
     }
 
     /// <summary>
-    /// O8: the pair from the first test again, with the existing norm superseded and nothing else
-    /// changed. A norm is never edited in place -- a change writes a new revision and retires the
-    /// old one -- so without this, revising a rule would collide with the very rule it replaces
-    /// and a subject could never edit anything.
-    ///
-    /// It follows from what supersession already means: a retired norm can no longer govern a
-    /// request, so there is no request it could collide over.
+    /// O8: the first test's pair with the existing norm superseded and nothing else changed. A
+    /// norm is never edited in place, so without this a subject could never revise a rule -- the
+    /// revision would collide with what it replaces. A retired norm governs no request, so there
+    /// is none for it to collide over.
     /// </summary>
     [Fact]
     public void SupersededNorm_CannotCollide_SoAnEditDoesNotConflict()

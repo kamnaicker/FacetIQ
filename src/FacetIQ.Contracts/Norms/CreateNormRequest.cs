@@ -3,13 +3,11 @@ using System.ComponentModel.DataAnnotations;
 namespace FacetIQ.Contracts.Norms;
 
 /// <summary>
-/// A rule the subject is authoring. The subject is deliberately absent: it comes from the
+/// A rule the subject is authoring. The subject is absent deliberately: it comes from the
 /// authenticated principal, so a caller cannot write rules into someone else's profile.
 ///
-/// Relationship and purpose are both optional, and omitting one is meaningful rather than
-/// incomplete -- an unbound condition is a wildcard admitting any request, and a norm binding
-/// neither applies to everything. Lengths mirror the columns in NormConfiguration, so oversized
-/// input is refused at the edge rather than surviving as far as the database.
+/// Omitting a condition is meaningful rather than incomplete -- an unbound condition is a wildcard.
+/// Lengths mirror the columns in NormConfiguration.
 /// </summary>
 public sealed record CreateNormRequest
 {
@@ -23,9 +21,8 @@ public sealed record CreateNormRequest
     public string? Purpose { get; init; }
 
     /// <summary>
-    /// Omitted, or None, releases the selected claim unchanged. The action is derived from this
-    /// and from the deny reason rather than being stated separately, so the two cannot contradict
-    /// each other.
+    /// Omitted, or None, releases the claim unchanged. The action is derived from this and the
+    /// deny reason rather than stated separately, so the two cannot contradict each other.
     /// </summary>
     [StringLength(32)]
     public string? Transform { get; init; }

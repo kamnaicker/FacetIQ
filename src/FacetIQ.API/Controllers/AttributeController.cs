@@ -20,9 +20,8 @@ public class AttributeController : ControllerBase
     }
 
     /// <summary>
-    /// The caller's own claims. There is no route to anyone else's: a claim is read through the
-    /// disclosure endpoint, where a norm decides what a requester receives. This route is the
-    /// subject reading their own profile, so it returns the set rather than a selection from it.
+    /// The caller's own claims, returned as the whole set. Anyone else reads a claim through the
+    /// disclosure endpoint, where a norm decides which one they receive.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<AttributeResponse>>> Get(
@@ -48,12 +47,9 @@ public class AttributeController : ControllerBase
     }
 
     /// <summary>
-    /// Adds a claim. The subject comes from the token and never from the route or the body, so a
-    /// caller can only ever write into their own profile.
-    ///
-    /// Nothing is checked against the claims already held. Two identical names are permitted, and
-    /// so is a name that contradicts another: the system stores what a person says about
-    /// themselves and does not adjudicate between their accounts of it.
+    /// Adds a claim. Nothing is checked against the claims already held: two identical names are
+    /// permitted, and so is a contradictory one. The system does not adjudicate between a person's
+    /// accounts of themselves.
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<AttributeResponse>> Post(

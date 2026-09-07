@@ -11,10 +11,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace FacetIQ.API.Tests.Controllers;
 
 /// <summary>
-/// O8 at the boundary. The detector's own tests prove it identifies a collision; these prove the
-/// endpoint acts on one -- that the author is told what their rule collided with, and that nothing
-/// was written. A detector reporting perfectly into a controller that stored the norm anyway would
-/// pass every test in the services suite.
+/// O8 at the boundary. The detector's tests prove it finds a collision; these prove the endpoint
+/// acts on one. A detector reporting perfectly into a controller that stored the norm anyway
+/// would pass every test in the services suite.
 /// </summary>
 public class NormControllerTests
 {
@@ -25,9 +24,8 @@ public class NormControllerTests
     private static readonly Guid SocialName = new("0a5f4d8e-0000-4000-8000-000000000012");
 
     /// <summary>
-    /// O8: a social request from a friend would satisfy both rules at equal specificity, and they
-    /// select different names. The norm is refused, the collision is described back with the
-    /// request that witnesses it, and the store is left untouched.
+    /// O8: a social request from a friend satisfies both rules at equal specificity, and they
+    /// select different names. Refused, described, and nothing written.
     /// </summary>
     [Fact]
     public async Task ConflictingNorm_IsRefused_AndNeverPersisted()
@@ -48,15 +46,13 @@ public class NormControllerTests
         Assert.Equal("friend", collision.OverlappingRelationship);
         Assert.Equal("Social", collision.OverlappingPurpose);
 
-        // The clause the detector's own tests cannot reach: refusing and not storing are two
-        // separate behaviours, and only this one proves the second.
+        // Refusing and not storing are separate behaviours; only this proves the second.
         Assert.Empty(norms.Added);
     }
 
     /// <summary>
-    /// The control. The same authoring attempt against a rule it cannot collide with is stored,
-    /// so the refusal above is attributable to the conflict rather than to an endpoint that
-    /// refuses everything.
+    /// The control. The same attempt against a rule it cannot collide with is stored, so the
+    /// refusal above is attributable to the conflict and not to an endpoint refusing everything.
     /// </summary>
     [Fact]
     public async Task NonConflictingNorm_IsStored()
@@ -76,9 +72,8 @@ public class NormControllerTests
     }
 
     /// <summary>
-    /// An account with no subject bound to it cannot author anything. This is the state every
-    /// registered account is in today, and it is why the norm endpoints cannot yet be exercised
-    /// over HTTP.
+    /// An account with no subject bound to it cannot author anything. This is the state any
+    /// newly registered account is in.
     /// </summary>
     [Fact]
     public async Task AccountOwningNoSubject_CannotAuthor()
@@ -94,10 +89,8 @@ public class NormControllerTests
     }
 
     /// <summary>
-    /// An unrecognised enum value is refused as ProblemDetails naming the field, not as a bare
-    /// string. Every other refusal at this boundary is already that shape -- an over-long key, a
-    /// missing required field -- and a client should not have to parse two things to read one
-    /// status code. The field name is asserted because that is what a form has to bind an error to.
+    /// An unrecognised enum is refused as ProblemDetails naming the field, matching the shape
+    /// DataAnnotations failures already use. The key is asserted because a form binds errors to it.
     /// </summary>
     [Fact]
     public async Task UnrecognisedEnumValue_IsRefusedAsProblemDetails_NamingTheField()
@@ -166,8 +159,7 @@ public class NormControllerTests
     }
 
     /// <summary>
-    /// Records writes rather than performing them, so a test can assert that a refusal wrote
-    /// nothing. The norms it was constructed with are what the detector compares against.
+    /// Records writes rather than performing them, so a test can assert a refusal wrote nothing.
     /// </summary>
     private sealed class RecordingNormRepository : INormRepository
     {

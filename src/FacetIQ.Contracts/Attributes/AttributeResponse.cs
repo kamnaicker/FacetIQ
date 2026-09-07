@@ -2,8 +2,7 @@ namespace FacetIQ.Contracts.Attributes;
 
 /// <summary>
 /// One claim, as its subject sees it. Several entries commonly share a key: that is the set the
-/// engine selects from, and seeing them together is what makes the selection legible to the
-/// person who wrote them.
+/// engine selects from.
 /// </summary>
 public sealed record AttributeResponse
 {

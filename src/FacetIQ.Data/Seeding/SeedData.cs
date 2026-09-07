@@ -23,10 +23,9 @@ public static class SeedData
     public static readonly Guid PendingColleague = new("0a5f4d8e-0000-4000-8000-000000000031");
 
     /// <summary>
-    /// The people the rows below are about, named by user identifier. These are also the ids of
-    /// the accounts <see cref="DevelopmentUserSeeder"/> creates, so the worked example can be
-    /// signed into rather than only read about. Constants because two places must agree on them
-    /// exactly, and a typo would present as a requester who mysteriously holds no standing.
+    /// The people the rows below are about. Also the ids <see cref="DevelopmentUserSeeder"/>
+    /// gives its accounts, so the two must agree exactly -- a typo reads as a requester who
+    /// holds no standing.
     /// </summary>
     public const string AmaraUserId = "seed-amara";
 

@@ -5,18 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FacetIQ.Data.Seeding;
 
 /// <summary>
-/// Creates the accounts the seeded worked example is written about.
+/// Creates the accounts the seeded example is written about, carrying the identifiers the seed
+/// rows already name. Nothing in the app schema is written and the operation is idempotent.
 ///
-/// The seeded rows already name their people by user identifier, so rather than rebinding those
-/// rows to whatever ids Identity would generate, the accounts are created carrying the identifiers
-/// the seed already uses. Nothing in the app schema is written, the operation is idempotent, and a
-/// database dropped and rebuilt from migrations comes back consistent without further work.
-///
-/// This seeds; it does not migrate. Schema changes are still applied deliberately from a command
-/// line, so a bad deployment cannot alter a database on startup.
-///
-/// Development only. Anywhere else the seeded subject stays unowned, which is correct: a
-/// demonstration profile should not be claimable on a deployed instance.
+/// Development only: elsewhere the seeded subject stays unowned, since a demonstration profile
+/// should not be claimable on a deployed instance. This seeds, it does not migrate.
 /// </summary>
 public static class DevelopmentUserSeeder
 {
@@ -52,8 +45,8 @@ public static class DevelopmentUserSeeder
 
             var result = await users.CreateAsync(user, Password);
 
-            // Creation reports failure rather than throwing it, and an empty user table that
-            // nothing complained about is a long hour of wondering why every sign-in is refused.
+            // Creation reports failure rather than throwing, and a silently empty user table is
+            // a long hour of wondering why every sign-in is refused.
             if (!result.Succeeded)
             {
                 throw new InvalidOperationException(

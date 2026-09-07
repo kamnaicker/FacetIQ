@@ -31,6 +31,15 @@ builder.Services.AddAuthorizationBuilder()
 
 builder.Services.AddScoped<IAuthorizationHandler, RequesterClaimsHandler>();
 
+// Origins come from configuration, so a new address is a setting rather than a rebuild. No
+// credentials: the client sends a bearer token in a header, not a cookie.
+const string BrowserClients = "BrowserClients";
+
+builder.Services.AddCors(options => options.AddPolicy(BrowserClients, policy => policy
+    .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
+    .AllowAnyHeader()
+    .AllowAnyMethod()));
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -57,7 +66,16 @@ if (app.Environment.IsDevelopment())
     await app.Services.SeedDevelopmentUsersAsync();
 }
 
-app.UseHttpsRedirection();
+// In development the client calls over http, and a redirect answers preflight with a 307 the
+// browser will not follow.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+// Before authentication: a preflight carries no credentials, so placed after it arrives anonymous
+// and the fallback policy refuses it.
+app.UseCors(BrowserClients);
 
 // Authentication populates the principal that authorization then evaluates. The order is
 // load-bearing: reversed, every request is anonymous and the fallback policy refuses it.

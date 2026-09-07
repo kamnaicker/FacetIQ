@@ -26,8 +26,8 @@ public class NormController : ControllerBase
     }
 
     /// <summary>
-    /// The caller's own norms. There is no route to anyone else's: the subject is resolved from
-    /// the token, so the only collection a caller can read is the one they authored.
+    /// The caller's own norms. The subject comes from the token, so there is no route to anyone
+    /// else's.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<NormResponse>>> Get(CancellationToken cancellationToken)
@@ -52,12 +52,9 @@ public class NormController : ControllerBase
     }
 
     /// <summary>
-    /// Authors a norm. Conflicts are detected before anything is written, so a rule that could not
-    /// be told apart from one already in force is refused now rather than stored and discovered
-    /// months later, when a request ties and the subject no longer remembers what they wrote.
-    ///
-    /// The refusal is a 409 rather than a 400: the request is well formed and the subject is
-    /// entitled to make it. What it collides with is the state of their own profile.
+    /// Authors a norm. Conflicts are detected before anything is written, so a tie is refused now
+    /// rather than surfacing against some later request. A collision is a 409, not a 400: the
+    /// request is well formed, and what it collides with is the state of the subject's profile.
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<NormResponse>> Post(
