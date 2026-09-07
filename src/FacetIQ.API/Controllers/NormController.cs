@@ -78,9 +78,20 @@ public class NormController : ControllerBase
             return Forbid();
         }
 
-        if (!NormMapper.TryToDomain(dto, subject.Id, out var norm))
+        if (!NormMapper.TryToDomain(dto, subject.Id, out var norm, out var invalidMember))
         {
-            return BadRequest("Unrecognised purpose, transform or deny reason.");
+            var offending = invalidMember switch
+            {
+                nameof(dto.Purpose) => dto.Purpose,
+                nameof(dto.Transform) => dto.Transform,
+                _ => dto.DenyReason
+            };
+
+            ModelState.AddModelError(invalidMember!, $"Unrecognised value '{offending}'.");
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
         }
 
         var existing = await _norms.ListGoverningAsync(subject.Id, cancellationToken);

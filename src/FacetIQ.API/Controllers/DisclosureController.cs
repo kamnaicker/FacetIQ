@@ -33,7 +33,16 @@ public class DisclosureController : ControllerBase
 
         if (!DisclosureMapper.TryToDomain(dto, requesterUserId, RequestChannel.Api, out var request))
         {
-            return BadRequest($"Unrecognised purpose '{dto.Purpose}'.");
+            // Recorded against the field rather than returned as a bare string, so an unrecognised
+            // purpose and an over-long key reach the caller in one shape instead of two. Everything
+            // else that refuses a request at the boundary is ProblemDetails already.
+            ModelState.AddModelError(nameof(dto.Purpose), $"Unrecognised purpose '{dto.Purpose}'.");
+
+            // The status is stated rather than left to a default: unset, the problem document
+            // carries no status of its own and the result does not become a 400.
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
         }
 
         var result = await _evaluator.EvaluateAsync(request, cancellationToken);

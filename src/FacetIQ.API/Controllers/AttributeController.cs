@@ -76,7 +76,13 @@ public class AttributeController : ControllerBase
 
         if (!AttributeMapper.TryToDomain(dto, subject.Id, out var attribute))
         {
-            return BadRequest($"Unrecognised purpose '{dto.CollectedFor}'.");
+            ModelState.AddModelError(
+                nameof(dto.CollectedFor),
+                $"Unrecognised purpose '{dto.CollectedFor}'.");
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
         }
 
         await _attributes.AddAsync(attribute, cancellationToken);

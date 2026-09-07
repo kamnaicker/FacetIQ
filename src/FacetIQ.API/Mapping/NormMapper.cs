@@ -16,14 +16,34 @@ public static class NormMapper
     /// caller, on the same reasoning as <see cref="DisclosureResult.Disclosed"/>: stated
     /// separately it could contradict them, and there is no sensible way to resolve that.
     /// </summary>
-    public static bool TryToDomain(CreateNormRequest dto, Guid subjectId, out Norm norm)
+    /// <param name="invalidMember">
+    /// Which field was not recognised, so the refusal can name it. Three fields here can fail,
+    /// unlike the other two mappers where only one can, which is why this one has to report it.
+    /// </param>
+    public static bool TryToDomain(
+        CreateNormRequest dto,
+        Guid subjectId,
+        out Norm norm,
+        out string? invalidMember)
     {
         norm = null!;
+        invalidMember = null;
 
-        if (!TryParseOptional<Purpose>(dto.Purpose, out var purpose) ||
-            !TryParseOptional<TransformKind>(dto.Transform, out var transform) ||
-            !TryParseOptional<DenyReasonCode>(dto.DenyReason, out var denyReason))
+        if (!TryParseOptional<Purpose>(dto.Purpose, out var purpose))
         {
+            invalidMember = nameof(dto.Purpose);
+            return false;
+        }
+
+        if (!TryParseOptional<TransformKind>(dto.Transform, out var transform))
+        {
+            invalidMember = nameof(dto.Transform);
+            return false;
+        }
+
+        if (!TryParseOptional<DenyReasonCode>(dto.DenyReason, out var denyReason))
+        {
+            invalidMember = nameof(dto.DenyReason);
             return false;
         }
 

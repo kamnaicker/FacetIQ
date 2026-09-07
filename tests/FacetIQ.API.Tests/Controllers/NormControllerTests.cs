@@ -93,6 +93,30 @@ public class NormControllerTests
         Assert.Empty(norms.Added);
     }
 
+    /// <summary>
+    /// An unrecognised enum value is refused as ProblemDetails naming the field, not as a bare
+    /// string. Every other refusal at this boundary is already that shape -- an over-long key, a
+    /// missing required field -- and a client should not have to parse two things to read one
+    /// status code. The field name is asserted because that is what a form has to bind an error to.
+    /// </summary>
+    [Fact]
+    public async Task UnrecognisedEnumValue_IsRefusedAsProblemDetails_NamingTheField()
+    {
+        var norms = new RecordingNormRepository();
+        var controller = ControllerFor(norms, Owner());
+
+        var request = Authoring(SocialName) with { Transform = "Embellish" };
+
+        var response = await controller.Post(request, CancellationToken.None);
+
+        var refusal = Assert.IsType<ObjectResult>(response.Result, exactMatch: false);
+        var problem = Assert.IsType<ValidationProblemDetails>(refusal.Value);
+
+        Assert.Equal(400, refusal.StatusCode);
+        Assert.True(problem.Errors.ContainsKey(nameof(CreateNormRequest.Transform)));
+        Assert.Empty(norms.Added);
+    }
+
     private static NormController ControllerFor(INormRepository norms, ClaimsPrincipal caller) =>
         new(new StubSubjectRepository(), norms, new ConflictDetector())
         {
