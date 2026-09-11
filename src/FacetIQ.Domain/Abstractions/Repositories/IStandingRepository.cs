@@ -12,4 +12,24 @@ public interface IStandingRepository
         Guid subjectId,
         string requesterUserId,
         CancellationToken cancellationToken);
+
+    /// <summary>What a subject has issued about others, pending or accepted.</summary>
+    Task<IReadOnlyList<Standing>> ListIssuedBySubjectAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken);
+
+    /// <summary>What has been issued to a requester, pending or accepted.</summary>
+    Task<IReadOnlyList<Standing>> ListHeldByAsync(
+        string requesterUserId,
+        CancellationToken cancellationToken);
+
+    Task<Standing?> FindAsync(Guid id, CancellationToken cancellationToken);
+
+    Task AddAsync(Standing standing, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records acceptance. Returns false when the standing is gone or was already accepted, so a
+    /// repeated accept cannot move the timestamp.
+    /// </summary>
+    Task<bool> AcceptAsync(Guid id, DateTimeOffset acceptedAt, CancellationToken cancellationToken);
 }

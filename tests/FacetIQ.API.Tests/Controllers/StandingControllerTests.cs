@@ -1,0 +1,287 @@
+using System.Security.Claims;
+using FacetIQ.API.Controllers;
+using FacetIQ.Contracts.Standings;
+using FacetIQ.Data.Identity;
+using FacetIQ.Domain.Abstractions.Repositories;
+using FacetIQ.Domain.Entities;
+using FacetIQ.Domain.Enums;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+
+namespace FacetIQ.API.Tests.Controllers;
+
+/// <summary>
+/// Issuing and accepting a standing. The engine's tests prove a pending standing changes no
+/// decision; these prove the endpoints only ever produce a pending one, and that only the person
+/// it describes can change that.
+/// </summary>
+public class StandingControllerTests
+{
+    private const string SamUserId = "sam";
+    private const string RiyaUserId = "riya";
+    private const string SamEmail = "sam@example.test";
+    private const string RiyaEmail = "riya@example.test";
+
+    private static readonly Guid SamSubjectId = new("0a5f4d8e-0000-4000-8000-000000000101");
+    private static readonly DateTimeOffset Now = new(2026, 9, 11, 9, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// An issued standing waits for the other person. If issuing also accepted it, one party could
+    /// assert a relationship about the other on their own.
+    /// </summary>
+    [Fact]
+    public async Task IssuedStanding_IsPending_UntilTheHolderAccepts()
+    {
+        var standings = new InMemoryStandings();
+
+        var response = await ControllerFor(SamUserId, standings)
+            .Post(Issue(RiyaEmail), CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(response.Result);
+
+        var stored = Assert.Single(standings.Rows);
+        Assert.Equal(SamSubjectId, stored.SubjectId);
+        Assert.Equal(RiyaUserId, stored.RequesterUserId);
+        Assert.Equal(IssuerKind.Subject, stored.IssuerKind);
+        Assert.Equal(SamUserId, stored.Issuer);
+        Assert.Null(stored.AcceptedAt);
+
+        Assert.Empty(await standings.GetAcceptedAsync(SamSubjectId, RiyaUserId, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// The issuer accepting their own standing would make acceptance meaningless. The attempt is
+    /// answered as though the standing did not exist, so it also confirms nothing.
+    /// </summary>
+    [Fact]
+    public async Task IssuerCannotAcceptTheirOwnStanding()
+    {
+        var standings = new InMemoryStandings();
+        await ControllerFor(SamUserId, standings).Post(Issue(RiyaEmail), CancellationToken.None);
+        var id = Assert.Single(standings.Rows).Id;
+
+        var response = await ControllerFor(SamUserId, standings).Accept(id, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(response);
+        Assert.Empty(await standings.GetAcceptedAsync(SamSubjectId, RiyaUserId, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// The control. The holder accepting is what brings the standing into the set the engine reads.
+    /// </summary>
+    [Fact]
+    public async Task HolderAccepting_BringsTheStandingIntoDecisions()
+    {
+        var standings = new InMemoryStandings();
+        await ControllerFor(SamUserId, standings).Post(Issue(RiyaEmail), CancellationToken.None);
+        var id = Assert.Single(standings.Rows).Id;
+
+        var response = await ControllerFor(RiyaUserId, standings).Accept(id, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(response);
+
+        var accepted = Assert.Single(
+            await standings.GetAcceptedAsync(SamSubjectId, RiyaUserId, CancellationToken.None));
+        Assert.Equal(Now, accepted.AcceptedAt);
+    }
+
+    [Fact]
+    public async Task StandingCannotDescribeTheIssuer()
+    {
+        var standings = new InMemoryStandings();
+
+        var response = await ControllerFor(SamUserId, standings)
+            .Post(Issue(SamEmail), CancellationToken.None);
+
+        AssertRefusedOnEmail(response.Result);
+        Assert.Empty(standings.Rows);
+    }
+
+    [Fact]
+    public async Task UnknownAddress_IsRefused_AndNothingIsStored()
+    {
+        var standings = new InMemoryStandings();
+
+        var response = await ControllerFor(SamUserId, standings)
+            .Post(Issue("nobody@example.test"), CancellationToken.None);
+
+        AssertRefusedOnEmail(response.Result);
+        Assert.Empty(standings.Rows);
+    }
+
+    private static void AssertRefusedOnEmail(ActionResult? result)
+    {
+        var refusal = Assert.IsType<ObjectResult>(result, exactMatch: false);
+        var problem = Assert.IsType<ValidationProblemDetails>(refusal.Value);
+
+        Assert.Equal(400, refusal.StatusCode);
+        Assert.True(problem.Errors.ContainsKey(nameof(IssueStandingRequest.Email)));
+    }
+
+    private static StandingController ControllerFor(string userId, InMemoryStandings standings) =>
+        new(standings, new Subjects(), new StubUsers(), new FixedClock())
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(
+                        new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId)], "test")),
+                },
+            },
+        };
+
+    private static IssueStandingRequest Issue(string email) => new()
+    {
+        Email = email,
+        Value = "colleague",
+    };
+
+    private sealed class InMemoryStandings : IStandingRepository
+    {
+        public List<Standing> Rows { get; } = [];
+
+        public Task<IReadOnlyList<Standing>> GetAcceptedAsync(
+            Guid subjectId,
+            string requesterUserId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Standing>>(Rows
+                .Where(standing =>
+                    standing.SubjectId == subjectId &&
+                    standing.RequesterUserId == requesterUserId &&
+                    standing.AcceptedAt is not null)
+                .ToList());
+
+        public Task<IReadOnlyList<Standing>> ListIssuedBySubjectAsync(
+            Guid subjectId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Standing>>(
+                Rows.Where(standing => standing.SubjectId == subjectId).ToList());
+
+        public Task<IReadOnlyList<Standing>> ListHeldByAsync(
+            string requesterUserId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Standing>>(
+                Rows.Where(standing => standing.RequesterUserId == requesterUserId).ToList());
+
+        public Task<Standing?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+            Task.FromResult(Rows.SingleOrDefault(standing => standing.Id == id));
+
+        public Task AddAsync(Standing standing, CancellationToken cancellationToken)
+        {
+            Rows.Add(standing);
+
+            return Task.CompletedTask;
+        }
+
+        // Standing is immutable, so acceptance replaces the row, as the database update does.
+        public Task<bool> AcceptAsync(
+            Guid id,
+            DateTimeOffset acceptedAt,
+            CancellationToken cancellationToken)
+        {
+            var index = Rows.FindIndex(standing => standing.Id == id && standing.AcceptedAt is null);
+
+            if (index < 0)
+            {
+                return Task.FromResult(false);
+            }
+
+            var pending = Rows[index];
+
+            Rows[index] = new Standing
+            {
+                Id = pending.Id,
+                SubjectId = pending.SubjectId,
+                RequesterUserId = pending.RequesterUserId,
+                Value = pending.Value,
+                IssuerKind = pending.IssuerKind,
+                Issuer = pending.Issuer,
+                IssuedAt = pending.IssuedAt,
+                AcceptedAt = acceptedAt,
+            };
+
+            return Task.FromResult(true);
+        }
+    }
+
+    /// <summary>Sam holds a profile. Riya does not need one to be issued a standing.</summary>
+    private sealed class Subjects : ISubjectRepository
+    {
+        private static readonly Subject Sam = new() { Id = SamSubjectId, UserId = SamUserId };
+
+        public Task<Subject?> FindAsync(Guid subjectId, CancellationToken cancellationToken) =>
+            Task.FromResult<Subject?>(subjectId == SamSubjectId ? Sam : null);
+
+        public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
+            Task.FromResult<Subject?>(userId == SamUserId ? Sam : null);
+
+        public Task AddAsync(Subject subject, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// UserManager's lookups are virtual, so the two the controller uses are overridden and the
+    /// store behind it is never reached.
+    /// </summary>
+    private sealed class StubUsers()
+        : UserManager<AppUser>(new UnusedStore(), null!, null!, null!, null!, null!, null!, null!, null!)
+    {
+        private static readonly AppUser[] Accounts =
+        [
+            new() { Id = SamUserId, Email = SamEmail },
+            new() { Id = RiyaUserId, Email = RiyaEmail },
+        ];
+
+        public override Task<AppUser?> FindByEmailAsync(string email) =>
+            Task.FromResult(Accounts.SingleOrDefault(account => account.Email == email));
+
+        public override Task<AppUser?> FindByIdAsync(string userId) =>
+            Task.FromResult(Accounts.SingleOrDefault(account => account.Id == userId));
+    }
+
+    private sealed class UnusedStore : IUserStore<AppUser>
+    {
+        public void Dispose()
+        {
+        }
+
+        public Task<string> GetUserIdAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<string?> GetUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SetUserNameAsync(AppUser user, string? userName, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<string?> GetNormalizedUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SetNormalizedUserNameAsync(
+            AppUser user,
+            string? normalizedName,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IdentityResult> CreateAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IdentityResult> UpdateAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IdentityResult> DeleteAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<AppUser?> FindByIdAsync(string userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<AppUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class FixedClock : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+}

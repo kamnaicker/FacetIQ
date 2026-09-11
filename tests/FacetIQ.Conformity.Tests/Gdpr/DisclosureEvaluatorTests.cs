@@ -6,7 +6,7 @@ using FacetIQ.Services.Disclosure;
 using FacetIQ.Services.Matching;
 using FacetIQ.Services.Transformation;
 
-namespace FacetIQ.Services.Tests;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 /// <summary>
 /// Conformity tests. Each asserts one project objective against the decision the engine
@@ -32,7 +32,7 @@ public class DisclosureEvaluatorTests
     /// running ahead of norm lookup is what this demonstrates.
     /// </summary>
     [Fact]
-    public async Task SelfAccess_ReturnsEveryClaim_Untransformed()
+    public async Task SelfAccess_OwnAttributes_ReturnsAllUntransformed()
     {
         var audit = new RecordingAuditRepository();
         var owner = new Subject { Id = SubjectId, UserId = RequesterUserId };
@@ -43,7 +43,9 @@ public class DisclosureEvaluatorTests
         Assert.Equal(ActionType.Return, result.Outcome);
         Assert.Equal(new[] { "Amara Chidinma Nwosu", "Dr Amara Nwosu", "Amara" }, result.Values);
         Assert.Null(result.Value);
-        Assert.Single(audit.Written);
+
+        var record = Assert.Single(audit.Written);
+        Assert.True(record.Transform is null or TransformKind.None);
     }
 
     /// <summary>
@@ -52,7 +54,7 @@ public class DisclosureEvaluatorTests
     /// can be derived from another, so selection cannot be replaced by transformation.
     /// </summary>
     [Fact]
-    public async Task SameClaim_AcrossThreeContexts_YieldsThreeRepresentations()
+    public async Task SameAttribute_ThreeContexts_ThreeRepresentations()
     {
         var norms = new[]
         {
@@ -76,7 +78,7 @@ public class DisclosureEvaluatorTests
     /// is what makes this evidence that the condition is what moved the outcome.
     /// </summary>
     [Fact]
-    public async Task ChangingOneCondition_ChangesTheRepresentation()
+    public async Task SingleParameterChange_ChangesRepresentation()
     {
         var norms = new[]
         {
@@ -197,7 +199,7 @@ public class DisclosureEvaluatorTests
     /// wrote a norm permitting exactly this request. The norm matches and is still overridden.
     /// </summary>
     [Fact]
-    public async Task ClaimCollectedForAnotherPurpose_IsRefused()
+    public async Task IncompatiblePurpose_ReturnsDeny()
     {
         var norms = new[] { Rule(DateOfBirth, purpose: Purpose.Regulatory) };
 
@@ -210,7 +212,7 @@ public class DisclosureEvaluatorTests
 
     /// <summary>O7: absence of an applicable norm is a refusal, never a best guess.</summary>
     [Fact]
-    public async Task NoApplicableNorm_IsRefused()
+    public async Task NoMatchingNorm_ReturnsDeny()
     {
         var norms = new[] { Rule(LegalName, purpose: Purpose.Regulatory) };
 
@@ -227,7 +229,7 @@ public class DisclosureEvaluatorTests
     /// cannot reach.
     /// </summary>
     [Fact]
-    public async Task Transform_ReturnsCoarserValueThanStored()
+    public async Task TransformNorm_ReturnsCoarserTruthfulValue()
     {
         var norms = new[]
         {
@@ -241,29 +243,38 @@ public class DisclosureEvaluatorTests
         Assert.NotEqual(DateOfBirth.Value, result.Value);
     }
 
-    /// <summary>O5: every outcome is recorded exactly once, and without the value released.</summary>
+    /// <summary>
+    /// O5: each of the three outcomes writes exactly one record. One audit instance is shared
+    /// across all three requests, so a path writing twice or not at all shows up in the count.
+    /// </summary>
     [Fact]
-    public async Task EveryOutcome_IsRecordedOnce_WithoutTheDisclosedValue()
+    public async Task EveryOutcome_WritesExactlyOneAuditRecord()
     {
         var audit = new RecordingAuditRepository();
-        var norms = new[] { Rule(SocialName, purpose: Purpose.Social) };
+        var norms = new[]
+        {
+            Rule(SocialName, purpose: Purpose.Social),
+            Rule(DateOfBirth, purpose: Purpose.Social, transform: TransformKind.Generalise, parameter: "18")
+        };
 
-        var result = await Evaluate(norms, Ask("name", Purpose.Social), audit);
+        await Evaluate(norms, Ask("name", Purpose.Social), audit);
+        Assert.Equal(ActionType.Return, Assert.Single(audit.Written).Outcome);
 
-        var record = Assert.Single(audit.Written);
-        Assert.Equal(ActionType.Return, record.Outcome);
-        Assert.Equal(norms[0].Id, record.NormId);
-        Assert.Equal(norms[0].Version, record.NormVersion);
-        Assert.DoesNotContain(result.Value!, record.JustifyingPrinciple ?? string.Empty);
+        await Evaluate(norms, Ask("dateOfBirth", Purpose.Social), audit);
+        Assert.Equal(2, audit.Written.Count);
+        Assert.Equal(ActionType.Transform, audit.Written[1].Outcome);
+
+        await Evaluate(norms, Ask("name", Purpose.Regulatory), audit);
+        Assert.Equal(3, audit.Written.Count);
+        Assert.Equal(ActionType.Deny, audit.Written[2].Outcome);
     }
 
     /// <summary>
-    /// O6: the record names the transform and its parameter, which applied to the stored claim
-    /// reproduce the released value. AuditRecord declares no property that could hold that value,
-    /// so a disclosure stays verifiable without a second copy of the subject's data.
+    /// O6: the norm version, transform and parameter on the record, applied to the stored claim,
+    /// reproduce the released value.
     /// </summary>
     [Fact]
-    public async Task AuditRecord_ReconstructsDisclosure_WithoutStoringTheValue()
+    public async Task AuditRecord_ReconstructsDisclosure()
     {
         var audit = new RecordingAuditRepository();
         var norms = new[]
@@ -274,12 +285,36 @@ public class DisclosureEvaluatorTests
         var result = await Evaluate(norms, Ask("dateOfBirth", Purpose.Social), audit);
 
         var record = Assert.Single(audit.Written);
+        Assert.Equal(norms[0].Id, record.NormId);
+        Assert.Equal(norms[0].Version, record.NormVersion);
         Assert.Equal(TransformKind.Generalise, record.Transform);
         Assert.Equal("18", record.TransformParameter);
 
         var replayed = Transforms.Apply(record.Transform!.Value, record.TransformParameter, DateOfBirth.Value);
 
         Assert.Equal(result.Value, replayed);
+    }
+
+    /// <summary>
+    /// O6: no field of the record holds the value released. Every property is read rather than a
+    /// chosen few, so a field added later that copies the value fails this test.
+    /// </summary>
+    [Fact]
+    public async Task AuditRecord_ContainsNoDisclosedValue()
+    {
+        var audit = new RecordingAuditRepository();
+        var norms = new[] { Rule(ProfessionalName, purpose: Purpose.Clinical, relationship: "colleague") };
+
+        var result = await Evaluate(norms, Ask("name", Purpose.Clinical), audit, standings: [Held("colleague")]);
+
+        Assert.Equal("Dr Amara Nwosu", result.Value);
+
+        var record = Assert.Single(audit.Written);
+        var fields = typeof(AuditRecord)
+            .GetProperties()
+            .Select(property => property.GetValue(record)?.ToString() ?? string.Empty);
+
+        Assert.All(fields, field => Assert.DoesNotContain(result.Value!, field));
     }
 
     [Fact]

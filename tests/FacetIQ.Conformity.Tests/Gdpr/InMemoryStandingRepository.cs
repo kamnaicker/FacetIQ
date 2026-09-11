@@ -1,7 +1,7 @@
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
 
-namespace FacetIQ.Services.Tests;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 /// <summary>
 /// Returns the standings it was given, already accepted. Tests that need to prove acceptance
@@ -24,4 +24,24 @@ internal sealed class InMemoryStandingRepository : IStandingRepository
                     standing.RequesterUserId == requesterUserId &&
                     standing.AcceptedAt is not null)
                 .ToList());
+
+    // The evaluator is the only thing under test here, and it reads accepted standings only.
+    public Task<IReadOnlyList<Standing>> ListIssuedBySubjectAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public Task<IReadOnlyList<Standing>> ListHeldByAsync(
+        string requesterUserId,
+        CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public Task<Standing?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task AddAsync(Standing standing, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<bool> AcceptAsync(
+        Guid id,
+        DateTimeOffset acceptedAt,
+        CancellationToken cancellationToken) => throw new NotSupportedException();
 }

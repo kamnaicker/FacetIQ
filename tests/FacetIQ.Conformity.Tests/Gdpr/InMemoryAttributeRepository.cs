@@ -1,7 +1,7 @@
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
 
-namespace FacetIQ.Services.Tests;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 internal sealed class InMemoryAttributeRepository : IAttributeRepository
 {

@@ -6,7 +6,7 @@ using FacetIQ.Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace FacetIQ.API.Tests.Controllers;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 public class DisclosureControllerTests
 {
@@ -16,7 +16,7 @@ public class DisclosureControllerTests
     /// the assertion that matters is the one counting calls into the engine.
     /// </summary>
     [Fact]
-    public async Task UnauthenticatedRequest_IsRefusedWithoutReachingTheEngine()
+    public async Task UnauthenticatedRequest_NeverReachesEvaluation()
     {
         var evaluator = new UnreachableEvaluator();
         var controller = ControllerFor(evaluator, new ClaimsPrincipal(new ClaimsIdentity()));

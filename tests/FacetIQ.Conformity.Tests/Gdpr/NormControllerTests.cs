@@ -8,7 +8,7 @@ using FacetIQ.Services.Authoring;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace FacetIQ.API.Tests.Controllers;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 /// <summary>
 /// O8 at the boundary. The detector's tests prove it finds a collision; these prove the endpoint
@@ -28,7 +28,7 @@ public class NormControllerTests
     /// select different names. Refused, described, and nothing written.
     /// </summary>
     [Fact]
-    public async Task ConflictingNorm_IsRefused_AndNeverPersisted()
+    public async Task CoMatchableEqualSpecificity_RejectedAtAuthoring()
     {
         var norms = new RecordingNormRepository(Existing(LegalName, purpose: Purpose.Social));
         var controller = ControllerFor(norms, Owner());
@@ -51,11 +51,11 @@ public class NormControllerTests
     }
 
     /// <summary>
-    /// The control. The same attempt against a rule it cannot collide with is stored, so the
+    /// O8, the control. The same attempt against a rule it cannot collide with is stored, so the
     /// refusal above is attributable to the conflict and not to an endpoint refusing everything.
     /// </summary>
     [Fact]
-    public async Task NonConflictingNorm_IsStored()
+    public async Task NonIntersectingEqualScore_Accepted()
     {
         var norms = new RecordingNormRepository(Existing(LegalName, purpose: Purpose.Regulatory));
         var controller = ControllerFor(norms, Owner());
@@ -156,6 +156,9 @@ public class NormControllerTests
 
         public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
             Task.FromResult<Subject?>(userId == OwnerUserId ? Owned : null);
+
+        public Task AddAsync(Subject subject, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("Authoring norms never creates a subject.");
     }
 
     /// <summary>

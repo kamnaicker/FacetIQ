@@ -22,4 +22,11 @@ public sealed class SubjectRepository : ISubjectRepository
         _context.Subjects
             .AsNoTracking()
             .SingleOrDefaultAsync(subject => subject.UserId == userId, cancellationToken);
+
+    public async Task AddAsync(Subject subject, CancellationToken cancellationToken)
+    {
+        _context.Subjects.Add(subject);
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

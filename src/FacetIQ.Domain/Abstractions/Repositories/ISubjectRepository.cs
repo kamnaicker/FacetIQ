@@ -11,4 +11,6 @@ public interface ISubjectRepository
     /// this way rather than from the route or body, so a caller writes only into their own profile.
     /// </summary>
     Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken);
+
+    Task AddAsync(Subject subject, CancellationToken cancellationToken);
 }

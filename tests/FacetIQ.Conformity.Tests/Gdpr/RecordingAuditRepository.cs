@@ -1,7 +1,7 @@
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
 
-namespace FacetIQ.Services.Tests;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 /// <summary>
 /// Keeps every record it is given so a test can assert on what the writer produced, including
