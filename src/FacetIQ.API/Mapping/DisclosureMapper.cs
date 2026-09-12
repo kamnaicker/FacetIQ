@@ -13,6 +13,7 @@ public static class DisclosureMapper
     /// </summary>
     public static bool TryToDomain(
         DisclosureRequestDto dto,
+        Guid subjectId,
         string requesterUserId,
         RequestChannel channel,
         out DisclosureRequest request)
@@ -24,7 +25,7 @@ public static class DisclosureMapper
         }
 
         request = new DisclosureRequest(
-            dto.SubjectId,
+            subjectId,
             dto.AttributeKey,
             requesterUserId,
             purpose,

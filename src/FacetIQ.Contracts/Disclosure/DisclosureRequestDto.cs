@@ -13,7 +13,14 @@ namespace FacetIQ.Contracts.Disclosure;
 /// </summary>
 public sealed record DisclosureRequestDto
 {
-    public required Guid SubjectId { get; init; }
+    /// <summary>
+    /// Who is being asked, by an address the requester already knows. Profile identifiers never
+    /// leave the API, since nobody could be expected to know one.
+    /// </summary>
+    [Required]
+    [EmailAddress]
+    [StringLength(256)]
+    public required string SubjectEmail { get; init; }
 
     [Required]
     [StringLength(64)]

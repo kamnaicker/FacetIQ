@@ -45,4 +45,15 @@ public sealed class NormRepository : INormRepository
 
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<bool> RetireAsync(Guid id, DateTimeOffset retiredAt, CancellationToken cancellationToken)
+    {
+        var retired = await _context.Norms
+            .Where(norm => norm.Id == id && norm.SupersededAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(norm => norm.SupersededAt, retiredAt),
+                cancellationToken);
+
+        return retired > 0;
+    }
 }

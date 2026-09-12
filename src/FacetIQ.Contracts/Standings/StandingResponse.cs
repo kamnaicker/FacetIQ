@@ -4,12 +4,6 @@ public sealed record StandingResponse
 {
     public required Guid Id { get; init; }
 
-    /// <summary>
-    /// Who the standing is towards. A holder needs it to ask that person anything, which is how a
-    /// requester learns of a subject without any endpoint listing them.
-    /// </summary>
-    public required Guid SubjectId { get; init; }
-
     public required string Value { get; init; }
 
     public required string IssuerKind { get; init; }

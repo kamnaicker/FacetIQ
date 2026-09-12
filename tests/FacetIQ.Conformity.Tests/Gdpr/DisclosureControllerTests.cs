@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using FacetIQ.API.Controllers;
 using FacetIQ.Contracts.Disclosure;
+using FacetIQ.Data.Identity;
 using FacetIQ.Domain.Abstractions.Services;
 using FacetIQ.Domain.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
@@ -45,7 +47,7 @@ public class DisclosureControllerTests
     }
 
     private static DisclosureController ControllerFor(IDisclosureEvaluator evaluator, ClaimsPrincipal caller) =>
-        new(evaluator)
+        new(evaluator, new InMemorySubjectRepository(), new NoAccounts())
         {
             ControllerContext = new ControllerContext
             {
@@ -55,10 +57,59 @@ public class DisclosureControllerTests
 
     private static DisclosureRequestDto Asking(string attributeKey) => new()
     {
-        SubjectId = Guid.NewGuid(),
+        SubjectEmail = "someone@example.test",
         AttributeKey = attributeKey,
         Purpose = "Social"
     };
+
+    /// <summary>
+    /// No address resolves, which is fine here: an unknown address still reaches the engine, so
+    /// the authenticated control passes and the unauthenticated test is untouched by lookup.
+    /// </summary>
+    private sealed class NoAccounts()
+        : UserManager<AppUser>(new UnusedStore(), null!, null!, null!, null!, null!, null!, null!, null!)
+    {
+        public override Task<AppUser?> FindByEmailAsync(string email) => Task.FromResult<AppUser?>(null);
+    }
+
+    private sealed class UnusedStore : IUserStore<AppUser>
+    {
+        public void Dispose()
+        {
+        }
+
+        public Task<string> GetUserIdAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<string?> GetUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SetUserNameAsync(AppUser user, string? userName, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<string?> GetNormalizedUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SetNormalizedUserNameAsync(
+            AppUser user,
+            string? normalizedName,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IdentityResult> CreateAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IdentityResult> UpdateAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IdentityResult> DeleteAsync(AppUser user, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<AppUser?> FindByIdAsync(string userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<AppUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
 
     /// <summary>
     /// Throws rather than returning, so an unnoticed call fails the test loudly. The counter

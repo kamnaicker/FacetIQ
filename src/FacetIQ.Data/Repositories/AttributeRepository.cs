@@ -43,4 +43,23 @@ public sealed class AttributeRepository : IAttributeRepository
 
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    // Retired rules go with the claim: they can no longer govern anything, and left behind their
+    // foreign key would block the delete. One transaction, so a failure leaves both in place.
+    public async Task<bool> DeleteAsync(Guid attributeId, CancellationToken cancellationToken)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        await _context.Norms
+            .Where(norm => norm.AttributeId == attributeId && norm.SupersededAt != null)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        var deleted = await _context.SubjectAttributes
+            .Where(attribute => attribute.Id == attributeId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return deleted > 0;
+    }
 }

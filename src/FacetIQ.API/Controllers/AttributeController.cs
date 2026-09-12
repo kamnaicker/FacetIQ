@@ -12,11 +12,16 @@ public class AttributeController : ControllerBase
 {
     private readonly ISubjectRepository _subjects;
     private readonly IAttributeRepository _attributes;
+    private readonly INormRepository _norms;
 
-    public AttributeController(ISubjectRepository subjects, IAttributeRepository attributes)
+    public AttributeController(
+        ISubjectRepository subjects,
+        IAttributeRepository attributes,
+        INormRepository norms)
     {
         _subjects = subjects;
         _attributes = attributes;
+        _norms = norms;
     }
 
     /// <summary>
@@ -47,9 +52,10 @@ public class AttributeController : ControllerBase
     }
 
     /// <summary>
-    /// Adds a claim. Nothing is checked against the claims already held: two identical names are
-    /// permitted, and so is a contradictory one. The system does not adjudicate between a person's
-    /// accounts of themselves.
+    /// Adds a claim. Contradictory claims are allowed, since the system does not adjudicate
+    /// between a person's accounts of themselves, but an identical one is refused: a second copy
+    /// adds nothing, and two rules releasing the same text through two copies would read as a
+    /// conflict between them.
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<AttributeResponse>> Post(
@@ -81,8 +87,65 @@ public class AttributeController : ControllerBase
                 modelStateDictionary: ModelState);
         }
 
+        // Compared exactly. A different capitalisation or spelling is a different name.
+        var held = await _attributes.ListByKeyAsync(subject.Id, attribute.Key, cancellationToken);
+
+        if (held.Any(claim => claim.Value == attribute.Value))
+        {
+            ModelState.AddModelError(nameof(dto.Value), "You already hold this.");
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
+        }
+
         await _attributes.AddAsync(attribute, cancellationToken);
 
         return CreatedAtAction(nameof(Get), AttributeMapper.ToContract(attribute));
+    }
+
+    /// <summary>
+    /// Erases a claim. Refused while a rule in force still releases it, and the refusal names those
+    /// rules, so nothing others can see changes behind the subject's back.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var subject = await _subjects.FindByUserIdAsync(userId, cancellationToken);
+
+        if (subject is null)
+        {
+            return Forbid();
+        }
+
+        var claim = await _attributes.FindAsync(id, cancellationToken);
+
+        if (claim is null || claim.SubjectId != subject.Id)
+        {
+            return NotFound();
+        }
+
+        var releasing = (await _norms.ListGoverningAsync(subject.Id, cancellationToken))
+            .Where(norm => norm.AttributeId == id)
+            .ToList();
+
+        if (releasing.Count > 0)
+        {
+            return Conflict(new ClaimInUseResponse
+            {
+                Rules = releasing.Select(NormMapper.ToContract).ToList(),
+            });
+        }
+
+        await _attributes.DeleteAsync(id, cancellationToken);
+
+        return NoContent();
     }
 }

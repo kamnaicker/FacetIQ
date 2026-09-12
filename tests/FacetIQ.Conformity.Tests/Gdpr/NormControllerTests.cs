@@ -23,6 +23,9 @@ public class NormControllerTests
     private static readonly Guid LegalName = new("0a5f4d8e-0000-4000-8000-000000000010");
     private static readonly Guid SocialName = new("0a5f4d8e-0000-4000-8000-000000000012");
 
+    private static readonly Guid StrangerSubjectId = new("0a5f4d8e-0000-4000-8000-000000000002");
+    private static readonly Guid StrangersName = new("0a5f4d8e-0000-4000-8000-000000000040");
+
     /// <summary>
     /// O8: a social request from a friend satisfies both rules at equal specificity, and they
     /// select different names. Refused, described, and nothing written.
@@ -110,8 +113,61 @@ public class NormControllerTests
         Assert.Empty(norms.Added);
     }
 
+    /// <summary>
+    /// Removing a rule retires it: it stops governing, and the repository is asked to retire
+    /// rather than delete, so audit records that name it keep their meaning.
+    /// </summary>
+    [Fact]
+    public async Task RemovedRule_StopsGoverning()
+    {
+        var rule = Existing(LegalName, purpose: Purpose.Social);
+        var norms = new RecordingNormRepository(rule);
+
+        var response = await ControllerFor(norms, Owner()).Delete(rule.Id, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(response);
+        Assert.Equal([rule.Id], norms.Retired);
+        Assert.Empty(await norms.ListGoverningAsync(SubjectId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RuleTheCallerDoesNotHold_CannotBeRemoved()
+    {
+        var norms = new RecordingNormRepository(Existing(LegalName, purpose: Purpose.Social));
+
+        var response = await ControllerFor(norms, Owner()).Delete(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(response);
+        Assert.Empty(norms.Retired);
+    }
+
+    /// <summary>
+    /// A rule may only select the author's own claim. The foreign key proves the claim exists,
+    /// not who holds it; without this the engine would release another subject's value under
+    /// the author's rules. Missing and foreign are refused identically, so the response does
+    /// not confirm that an id exists.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RuleNamingAnotherSubjectsClaim_IsRefused(bool claimExists)
+    {
+        var norms = new RecordingNormRepository();
+        var controller = ControllerFor(norms, Owner());
+        var attributeId = claimExists ? StrangersName : Guid.NewGuid();
+
+        var response = await controller.Post(Authoring(attributeId), CancellationToken.None);
+
+        var refusal = Assert.IsType<ObjectResult>(response.Result, exactMatch: false);
+        var problem = Assert.IsType<ValidationProblemDetails>(refusal.Value);
+
+        Assert.Equal(400, refusal.StatusCode);
+        Assert.True(problem.Errors.ContainsKey(nameof(CreateNormRequest.AttributeId)));
+        Assert.Empty(norms.Added);
+    }
+
     private static NormController ControllerFor(INormRepository norms, ClaimsPrincipal caller) =>
-        new(new StubSubjectRepository(), norms, new ConflictDetector())
+        new(new StubSubjectRepository(), norms, Claims(), new ConflictDetector(), TimeProvider.System)
         {
             ControllerContext = new ControllerContext
             {
@@ -121,6 +177,20 @@ public class NormControllerTests
 
     private static ClaimsPrincipal Owner() =>
         new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, OwnerUserId)], "test"));
+
+    /// <summary>The owner's two names, and one name held by someone else.</summary>
+    private static InMemoryAttributeRepository Claims() => new(
+        Claim(LegalName, SubjectId, "Amara Chidinma Nwosu"),
+        Claim(SocialName, SubjectId, "Amara"),
+        Claim(StrangersName, StrangerSubjectId, "Someone Else"));
+
+    private static SubjectAttribute Claim(Guid id, Guid subjectId, string value) => new()
+    {
+        Id = id,
+        SubjectId = subjectId,
+        Key = "name",
+        Value = value
+    };
 
     private static Norm Existing(Guid attributeId, Purpose? purpose = null, string? relationship = null) => new()
     {
@@ -172,16 +242,31 @@ public class NormControllerTests
 
         public List<Norm> Added { get; } = [];
 
+        public List<Guid> Retired { get; } = [];
+
         public Task<IReadOnlyList<Norm>> ListGoverningAsync(
             Guid subjectId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(_existing);
+            Task.FromResult<IReadOnlyList<Norm>>(
+                _existing.Where(norm => !Retired.Contains(norm.Id)).ToList());
 
         public Task AddAsync(Norm norm, CancellationToken cancellationToken)
         {
             Added.Add(norm);
 
             return Task.CompletedTask;
+        }
+
+        public Task<bool> RetireAsync(Guid id, DateTimeOffset retiredAt, CancellationToken cancellationToken)
+        {
+            if (Retired.Contains(id) || _existing.All(norm => norm.Id != id))
+            {
+                return Task.FromResult(false);
+            }
+
+            Retired.Add(id);
+
+            return Task.FromResult(true);
         }
 
         public Task<IReadOnlyList<Norm>> GetGoverningNormsAsync(

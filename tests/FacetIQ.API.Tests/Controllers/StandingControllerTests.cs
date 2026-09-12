@@ -110,6 +110,53 @@ public class StandingControllerTests
         Assert.Empty(standings.Rows);
     }
 
+    [Fact]
+    public async Task SameTermForTheSamePerson_IsRefusedTheSecondTime()
+    {
+        var standings = new InMemoryStandings();
+        standings.Rows.Add(Pending(RiyaUserId, "colleague"));
+
+        var response = await ControllerFor(SamUserId, standings)
+            .Post(Issue(RiyaEmail) with { Value = "Colleague" }, CancellationToken.None);
+
+        var refusal = Assert.IsType<ObjectResult>(response.Result, exactMatch: false);
+        var problem = Assert.IsType<ValidationProblemDetails>(refusal.Value);
+
+        Assert.Equal(400, refusal.StatusCode);
+        Assert.True(problem.Errors.ContainsKey(nameof(IssueStandingRequest.Value)));
+        Assert.Single(standings.Rows);
+    }
+
+    /// <summary>
+    /// Listing more than one standing looks each address up in turn. Run together, the lookups
+    /// would share one database context, which refuses a second query while the first is open.
+    /// </summary>
+    [Fact]
+    public async Task SeveralStandings_AreListed()
+    {
+        var standings = new InMemoryStandings();
+        standings.Rows.Add(Pending(RiyaUserId, "colleague"));
+        standings.Rows.Add(Pending(RiyaUserId, "friend"));
+        standings.Rows.Add(Pending(RiyaUserId, "neighbour"));
+
+        var response = await ControllerFor(SamUserId, standings).Get(CancellationToken.None);
+
+        var listed = Assert.IsType<StandingsResponse>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        Assert.Equal(3, listed.Issued.Count);
+        Assert.All(listed.Issued, standing => Assert.Equal(RiyaEmail, standing.Holder));
+    }
+
+    private static Standing Pending(string holder, string value) => new()
+    {
+        Id = Guid.NewGuid(),
+        SubjectId = SamSubjectId,
+        RequesterUserId = holder,
+        Value = value,
+        IssuerKind = IssuerKind.Subject,
+        Issuer = SamUserId,
+        IssuedAt = Now,
+    };
+
     private static void AssertRefusedOnEmail(ActionResult? result)
     {
         var refusal = Assert.IsType<ObjectResult>(result, exactMatch: false);
@@ -224,6 +271,9 @@ public class StandingControllerTests
     /// <summary>
     /// UserManager's lookups are virtual, so the two the controller uses are overridden and the
     /// store behind it is never reached.
+    ///
+    /// Each lookup yields and refuses to overlap another, as the real one does: it shares a single
+    /// database context per request, and EF throws if a second query starts before the first ends.
     /// </summary>
     private sealed class StubUsers()
         : UserManager<AppUser>(new UnusedStore(), null!, null!, null!, null!, null!, null!, null!, null!)
@@ -234,11 +284,32 @@ public class StandingControllerTests
             new() { Id = RiyaUserId, Email = RiyaEmail },
         ];
 
+        private int _inFlight;
+
         public override Task<AppUser?> FindByEmailAsync(string email) =>
-            Task.FromResult(Accounts.SingleOrDefault(account => account.Email == email));
+            OneAtATime(() => Accounts.SingleOrDefault(account => account.Email == email));
 
         public override Task<AppUser?> FindByIdAsync(string userId) =>
-            Task.FromResult(Accounts.SingleOrDefault(account => account.Id == userId));
+            OneAtATime(() => Accounts.SingleOrDefault(account => account.Id == userId));
+
+        private async Task<AppUser?> OneAtATime(Func<AppUser?> lookup)
+        {
+            if (Interlocked.Increment(ref _inFlight) > 1)
+            {
+                throw new InvalidOperationException("A second operation was started on this context.");
+            }
+
+            try
+            {
+                await Task.Yield();
+
+                return lookup();
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _inFlight);
+            }
+        }
     }
 
     private sealed class UnusedStore : IUserStore<AppUser>

@@ -25,4 +25,10 @@ public interface IAttributeRepository
 
     /// <summary>Nothing replaces an existing claim: a new name is an addition to the set.</summary>
     Task AddAsync(SubjectAttribute attribute, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Erases a claim along with any retired rules about it. The caller refuses first if a rule in
+    /// force still releases it.
+    /// </summary>
+    Task<bool> DeleteAsync(Guid attributeId, CancellationToken cancellationToken);
 }

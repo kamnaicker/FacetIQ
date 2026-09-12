@@ -49,11 +49,21 @@ public class StandingController : ControllerBase
 
         var held = await _standings.ListHeldByAsync(userId, cancellationToken);
 
-        return Ok(new StandingsResponse
+        // One at a time: every lookup uses this request's database context, which refuses a second
+        // query while one is still open.
+        var issuedResponses = new List<StandingResponse>();
+        foreach (var standing in issued)
         {
-            Issued = await Task.WhenAll(issued.Select(standing => ToContract(standing, withHolder: true))),
-            Held = await Task.WhenAll(held.Select(standing => ToContract(standing, withHolder: false))),
-        });
+            issuedResponses.Add(await ToContract(standing, withHolder: true));
+        }
+
+        var heldResponses = new List<StandingResponse>();
+        foreach (var standing in held)
+        {
+            heldResponses.Add(await ToContract(standing, withHolder: false));
+        }
+
+        return Ok(new StandingsResponse { Issued = issuedResponses, Held = heldResponses });
     }
 
     /// <summary>
@@ -94,6 +104,21 @@ public class StandingController : ControllerBase
         if (holder.Id == userId)
         {
             ModelState.AddModelError(nameof(dto.Email), "A standing describes someone else.");
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
+        }
+
+        // The same term for the same person twice adds nothing to matching and shows twice on
+        // screen. Compared as matching compares it, so a change of case is not a new standing.
+        var issued = await _standings.ListIssuedBySubjectAsync(subject.Id, cancellationToken);
+
+        if (issued.Any(existing =>
+                existing.RequesterUserId == holder.Id &&
+                string.Equals(existing.Value, dto.Value, StringComparison.OrdinalIgnoreCase)))
+        {
+            ModelState.AddModelError(nameof(dto.Value), "You have already added them as that.");
 
             return ValidationProblem(
                 statusCode: StatusCodes.Status400BadRequest,
@@ -147,7 +172,6 @@ public class StandingController : ControllerBase
         return new StandingResponse
         {
             Id = standing.Id,
-            SubjectId = standing.SubjectId,
             Value = standing.Value,
             IssuerKind = standing.IssuerKind.ToString(),
             Issuer = standing.IssuerKind == IssuerKind.Subject

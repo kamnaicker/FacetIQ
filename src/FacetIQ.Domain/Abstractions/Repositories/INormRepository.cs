@@ -21,4 +21,10 @@ public interface INormRepository
 
     /// <summary>Detecting conflicts is the caller's job and happens first.</summary>
     Task AddAsync(Norm norm, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Stops a rule governing without removing it, so audit records that name it stay meaningful.
+    /// Returns false when it was not in force.
+    /// </summary>
+    Task<bool> RetireAsync(Guid id, DateTimeOffset retiredAt, CancellationToken cancellationToken);
 }

@@ -33,4 +33,7 @@ internal sealed class InMemoryAttributeRepository : IAttributeRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<bool> DeleteAsync(Guid attributeId, CancellationToken cancellationToken) =>
+        Task.FromResult(_attributes.RemoveAll(attribute => attribute.Id == attributeId) > 0);
 }

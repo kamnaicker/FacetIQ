@@ -47,4 +47,8 @@ internal sealed class InMemoryNormRepository : INormRepository
 
         return Task.CompletedTask;
     }
+
+    // The evaluator never retires a rule, so nothing here needs to.
+    public Task<bool> RetireAsync(Guid id, DateTimeOffset retiredAt, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
