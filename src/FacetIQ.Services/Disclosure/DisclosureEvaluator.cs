@@ -119,7 +119,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
     {
         if (norm.Action == ActionType.Deny)
         {
-            return DisclosureResult.Denied(norm.DenyReason ?? DenyReasonCode.PurposeIncompatible, norm);
+            return DisclosureResult.Denied(norm.DenyReason ?? DenyReasonCode.RefusedByRule, norm);
         }
 
         var claim = await _attributes.FindAsync(norm.AttributeId, cancellationToken);

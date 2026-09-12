@@ -210,6 +210,22 @@ public class DisclosureEvaluatorTests
         Assert.Null(result.Value);
     }
 
+    /// <summary>
+    /// A refusal the subject wrote is recorded as theirs, not as the engine's purpose override,
+    /// so the audit says which of the two happened.
+    /// </summary>
+    [Fact]
+    public async Task AuthoredRefusal_IsRecordedAsRefusedByRule()
+    {
+        var refusal = Refusal(LegalName, purpose: Purpose.Social);
+
+        var result = await Evaluate([refusal], Ask("name", Purpose.Social));
+
+        Assert.Equal(ActionType.Deny, result.Outcome);
+        Assert.Equal(DenyReasonCode.RefusedByRule, result.DenyReason);
+        Assert.Same(refusal, result.Norm);
+    }
+
     /// <summary>O7: absence of an applicable norm is a refusal, never a best guess.</summary>
     [Fact]
     public async Task NoMatchingNorm_ReturnsDeny()
@@ -379,6 +395,21 @@ public class DisclosureEvaluatorTests
         Value = value,
         Label = label,
         CollectedFor = collectedFor
+    };
+
+    /// <summary>A rule that refuses rather than releases.</summary>
+    private static Norm Refusal(SubjectAttribute claim, Purpose? purpose = null) => new()
+    {
+        Id = Guid.NewGuid(),
+        Version = 1,
+        SubjectId = SubjectId,
+        AttributeId = claim.Id,
+        Attribute = claim,
+        Purpose = purpose,
+        Action = ActionType.Deny,
+        Transform = TransformKind.None,
+        DenyReason = DenyReasonCode.RefusedByRule,
+        JustifyingPrinciple = "Test refusal."
     };
 
     private static Norm Rule(

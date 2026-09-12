@@ -17,4 +17,15 @@ internal sealed class RecordingAuditRepository : IAuditRecordRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<AuditRecord>> ListForSubjectAsync(
+        Guid subjectId,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<AuditRecord>>(
+            Written
+                .Where(record => record.SubjectId == subjectId)
+                .OrderByDescending(record => record.Timestamp)
+                .Take(limit)
+                .ToList());
 }
