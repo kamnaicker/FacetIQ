@@ -16,13 +16,13 @@ public sealed class NormRepository : INormRepository
         string attributeKey,
         CancellationToken cancellationToken)
     {
-        // Joining through the attribute keeps the key filter in the database: a subject may
-        // hold many norms, and only those pointing at claims of this kind can apply.
+        // Also checks the claim's owner, so a norm can never select another subject's claim.
         return await _context.Norms
             .AsNoTracking()
             .Where(norm =>
                 norm.SubjectId == subjectId &&
                 norm.SupersededAt == null &&
+                norm.Attribute.SubjectId == subjectId &&
                 norm.Attribute.Key == attributeKey)
             .ToListAsync(cancellationToken);
     }

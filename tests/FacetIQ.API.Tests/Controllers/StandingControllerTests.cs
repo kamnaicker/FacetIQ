@@ -11,11 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Tests.Controllers;
 
-/// <summary>
-/// Issuing and accepting a standing. The engine's tests prove a pending standing changes no
-/// decision; these prove the endpoints only ever produce a pending one, and that only the person
-/// it describes can change that.
-/// </summary>
+/// <summary>Issuing always creates a pending standing, and only the holder can accept it.</summary>
 public class StandingControllerTests
 {
     private const string SamUserId = "sam";
@@ -26,10 +22,6 @@ public class StandingControllerTests
     private static readonly Guid SamSubjectId = new("0a5f4d8e-0000-4000-8000-000000000101");
     private static readonly DateTimeOffset Now = new(2026, 9, 11, 9, 0, 0, TimeSpan.Zero);
 
-    /// <summary>
-    /// An issued standing waits for the other person. If issuing also accepted it, one party could
-    /// assert a relationship about the other on their own.
-    /// </summary>
     [Fact]
     public async Task IssuedStanding_IsPending_UntilTheHolderAccepts()
     {
@@ -50,10 +42,7 @@ public class StandingControllerTests
         Assert.Empty(await standings.GetAcceptedAsync(SamSubjectId, RiyaUserId, CancellationToken.None));
     }
 
-    /// <summary>
-    /// The issuer accepting their own standing would make acceptance meaningless. The attempt is
-    /// answered as though the standing did not exist, so it also confirms nothing.
-    /// </summary>
+    /// <summary>Answered as 404, the same as a standing that does not exist.</summary>
     [Fact]
     public async Task IssuerCannotAcceptTheirOwnStanding()
     {
@@ -67,9 +56,7 @@ public class StandingControllerTests
         Assert.Empty(await standings.GetAcceptedAsync(SamSubjectId, RiyaUserId, CancellationToken.None));
     }
 
-    /// <summary>
-    /// The control. The holder accepting is what brings the standing into the set the engine reads.
-    /// </summary>
+    /// <summary>The control for the test above.</summary>
     [Fact]
     public async Task HolderAccepting_BringsTheStandingIntoDecisions()
     {
@@ -127,10 +114,7 @@ public class StandingControllerTests
         Assert.Single(standings.Rows);
     }
 
-    /// <summary>
-    /// Listing more than one standing looks each address up in turn. Run together, the lookups
-    /// would share one database context, which refuses a second query while the first is open.
-    /// </summary>
+    /// <summary>Regression: concurrent email lookups failed on the shared DbContext. StubUsers throws on overlap.</summary>
     [Fact]
     public async Task SeveralStandings_AreListed()
     {
@@ -222,7 +206,7 @@ public class StandingControllerTests
             return Task.CompletedTask;
         }
 
-        // Standing is immutable, so acceptance replaces the row, as the database update does.
+        // Standing is immutable, so the row is replaced.
         public Task<bool> AcceptAsync(
             Guid id,
             DateTimeOffset acceptedAt,
@@ -253,7 +237,7 @@ public class StandingControllerTests
         }
     }
 
-    /// <summary>Sam holds a profile. Riya does not need one to be issued a standing.</summary>
+    /// <summary>Only Sam has a profile; a holder does not need one.</summary>
     private sealed class Subjects : ISubjectRepository
     {
         private static readonly Subject Sam = new() { Id = SamSubjectId, UserId = SamUserId };
@@ -269,11 +253,8 @@ public class StandingControllerTests
     }
 
     /// <summary>
-    /// UserManager's lookups are virtual, so the two the controller uses are overridden and the
-    /// store behind it is never reached.
-    ///
-    /// Each lookup yields and refuses to overlap another, as the real one does: it shares a single
-    /// database context per request, and EF throws if a second query starts before the first ends.
+    /// Overrides the two virtual lookups the controller uses. Throws on overlapping calls, as EF
+    /// does when one DbContext runs two queries at once.
     /// </summary>
     private sealed class StubUsers()
         : UserManager<AppUser>(new UnusedStore(), null!, null!, null!, null!, null!, null!, null!, null!)

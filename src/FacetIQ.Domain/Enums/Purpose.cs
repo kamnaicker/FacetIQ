@@ -1,12 +1,8 @@
 namespace FacetIQ.Domain.Enums;
 
-/// <summary>
-/// Why the requester is asking. This is the transmission principle of the information
-/// flow, and one of the three conditions a norm may bind.
-/// </summary>
+/// <summary>Stated by the requester and not verified; recorded on the audit row. No default member.</summary>
 public enum Purpose
 {
-    Unspecified,
     Identification,
     Regulatory,
     Clinical,

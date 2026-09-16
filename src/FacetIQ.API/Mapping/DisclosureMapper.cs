@@ -6,11 +6,7 @@ namespace FacetIQ.API.Mapping;
 
 public static class DisclosureMapper
 {
-    /// <summary>
-    /// Builds the domain request from the contract and the authenticated caller. Purpose is
-    /// parsed rather than bound so an unrecognised value is rejected at the boundary instead
-    /// of arriving at the engine as a default.
-    /// </summary>
+    /// <summary>False when the purpose is not a recognised name.</summary>
     public static bool TryToDomain(
         DisclosureRequestDto dto,
         Guid subjectId,
@@ -18,7 +14,7 @@ public static class DisclosureMapper
         RequestChannel channel,
         out DisclosureRequest request)
     {
-        if (!Enum.TryParse<Purpose>(dto.Purpose, ignoreCase: true, out var purpose))
+        if (!EnumValue.TryParse<Purpose>(dto.Purpose, out var purpose))
         {
             request = null!;
             return false;

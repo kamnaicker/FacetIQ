@@ -4,24 +4,42 @@ using FacetIQ.Domain.Enums;
 
 namespace FacetIQ.Services.Transformation;
 
-/// <summary>
-/// Produces a coarser representation of a claim. Each transform returns a value that is
-/// still true of the subject; none of them substitutes information the subject did not give.
-/// </summary>
+/// <summary>Each transform returns something coarser that is still true of the subject.</summary>
 public sealed class TransformService : ITransformService
 {
     private const string RedactedValue = "[redacted]";
+    private const int DefaultAgeThreshold = 18;
 
-    public string Apply(TransformKind kind, string? parameter, string value) => kind switch
+    private readonly TimeProvider _clock;
+
+    public TransformService(TimeProvider clock) => _clock = clock;
+
+    public bool TryApply(TransformKind kind, string? parameter, string value, out string result)
     {
-        TransformKind.None => value,
-        TransformKind.Redact => RedactedValue,
-        TransformKind.Reformat => ToInitials(value),
-        TransformKind.Generalise => ToAgeBand(value, parameter),
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported transform.")
-    };
+        switch (kind)
+        {
+            case TransformKind.None:
+                result = value;
+                return true;
 
-    /// <summary>"Amara Nwosu" becomes "A. N." -- enough to confirm a match, not to identify.</summary>
+            case TransformKind.Redact:
+                result = RedactedValue;
+                return true;
+
+            case TransformKind.Reformat:
+                result = ToInitials(value);
+                return true;
+
+            case TransformKind.Generalise:
+                return TryToAgeBand(value, parameter, out result);
+
+            default:
+                result = string.Empty;
+                return false;
+        }
+    }
+
+    // "Amara Nwosu" -> "A. N."
     private static string ToInitials(string value)
     {
         var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -29,19 +47,25 @@ public sealed class TransformService : ITransformService
         return string.Join(' ', parts.Select(part => $"{char.ToUpperInvariant(part[0])}."));
     }
 
-    /// <summary>
-    /// A date of birth becomes a threshold statement such as "over 18". The returned value
-    /// was never stored, which is the step selective disclosure alone cannot take.
-    /// </summary>
-    private static string ToAgeBand(string value, string? parameter)
+    // "1994-03-11" with threshold 18 -> "over 18"
+    private bool TryToAgeBand(string value, string? parameter, out string result)
     {
-        if (!DateOnly.TryParse(value, CultureInfo.InvariantCulture, out var dateOfBirth))
+        result = string.Empty;
+
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOfBirth))
         {
-            throw new InvalidOperationException("Generalise expects a date value.");
+            return false;
         }
 
-        var threshold = int.Parse(parameter ?? "18", CultureInfo.InvariantCulture);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var threshold = DefaultAgeThreshold;
+
+        if (parameter is not null &&
+            (!int.TryParse(parameter, NumberStyles.None, CultureInfo.InvariantCulture, out threshold) || threshold <= 0))
+        {
+            return false;
+        }
+
+        var today = DateOnly.FromDateTime(_clock.GetUtcNow().UtcDateTime);
         var age = today.Year - dateOfBirth.Year;
 
         if (dateOfBirth > today.AddYears(-age))
@@ -49,6 +73,7 @@ public sealed class TransformService : ITransformService
             age--;
         }
 
-        return age >= threshold ? $"over {threshold}" : $"under {threshold}";
+        result = age >= threshold ? $"over {threshold}" : $"under {threshold}";
+        return true;
     }
 }

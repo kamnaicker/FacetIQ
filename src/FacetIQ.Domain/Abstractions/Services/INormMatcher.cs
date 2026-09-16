@@ -3,16 +3,10 @@ using FacetIQ.Domain.Models;
 
 namespace FacetIQ.Domain.Abstractions.Services;
 
-/// <summary>
-/// Reduces a subject's norms to those that apply to a request, scoring each by specificity.
-/// Pure: matching depends only on its arguments.
-/// </summary>
+/// <summary>Filters norms to those that apply to the request and scores each.</summary>
 public interface INormMatcher
 {
-    /// <param name="standings">
-    /// The relationship terms the requester holds by accepted standing. Resolved by the caller,
-    /// never taken from the request, which is why it arrives as a separate argument.
-    /// </param>
+    /// <param name="standings">Relationship terms from the requester's accepted standings.</param>
     IReadOnlyList<NormCandidate> Match(
         IReadOnlyList<Norm> norms,
         DisclosureRequest request,

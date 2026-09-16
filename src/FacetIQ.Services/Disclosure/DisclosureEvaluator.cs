@@ -6,10 +6,7 @@ using FacetIQ.Domain.Models;
 
 namespace FacetIQ.Services.Disclosure;
 
-/// <summary>
-/// Orders the disclosure pipeline. Every path through this class ends in exactly one audit
-/// record, including the paths that refuse.
-/// </summary>
+/// <summary>Runs the disclosure pipeline. Every outcome, including a refusal, writes one audit record.</summary>
 public sealed class DisclosureEvaluator : IDisclosureEvaluator
 {
     private readonly ISubjectRepository _subjects;
@@ -56,11 +53,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         return result;
     }
 
-    /// <summary>
-    /// A subject reading their own claims receives all of them, in the form they were stored.
-    /// This precedes norm lookup deliberately: a right of access is not something the subject's
-    /// own rules can narrow.
-    /// </summary>
+    // Checked before norms: a subject's own rules cannot narrow their right of access.
     private async Task<DisclosureResult> SelfAccessAsync(
         DisclosureRequest request,
         CancellationToken cancellationToken)
@@ -88,11 +81,7 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
         };
     }
 
-    /// <summary>
-    /// The relationship terms a requester holds, read from accepted standings rather than from
-    /// anything they sent. A requester who holds none still matches every wildcard norm, which
-    /// is most of them; they simply cannot reach one written about a relationship.
-    /// </summary>
+    // Relationships come from accepted standings only, never from the request.
     private async Task<IReadOnlySet<string>> ResolveStandingsAsync(
         DisclosureRequest request,
         CancellationToken cancellationToken)
@@ -107,38 +96,35 @@ public sealed class DisclosureEvaluator : IDisclosureEvaluator
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Selection is already complete: the norm names the claim to disclose and the form to
-    /// disclose it in. Only the purpose travels this far, and only to test it against the
-    /// claim's collection limit, so matching cannot be revisited once it has been decided.
-    /// </summary>
     private async Task<DisclosureResult> ResolveAsync(
         Norm norm,
         Purpose purpose,
         CancellationToken cancellationToken)
     {
+        // The stored reason is ignored so a rule cannot pass itself off as an engine refusal.
         if (norm.Action == ActionType.Deny)
         {
-            return DisclosureResult.Denied(norm.DenyReason ?? DenyReasonCode.RefusedByRule, norm);
+            return DisclosureResult.Denied(DenyReasonCode.RefusedByRule, norm);
         }
 
         var claim = await _attributes.FindAsync(norm.AttributeId, cancellationToken);
 
+        // Unreachable while the foreign key holds; kept so a missing claim is refused, not thrown.
         if (claim is null)
         {
             return DisclosureResult.Denied(DenyReasonCode.ClaimUnavailable, norm);
         }
 
-        // A claim collected for one purpose is not released for another. This is the only
-        // point the engine refuses what the subject's own norm permits: a purpose limit is
-        // undertaken at collection, and a later rule cannot dissolve it. The norm travels
-        // with the refusal so the record shows which permission was overridden.
+        // A collection purpose overrides a norm that would otherwise release the claim.
         if (claim.CollectedFor is not null && claim.CollectedFor != purpose)
         {
             return DisclosureResult.Denied(DenyReasonCode.PurposeIncompatible, norm);
         }
 
-        var value = _transforms.Apply(norm.Transform, norm.TransformParameter, claim.Value);
+        if (!_transforms.TryApply(norm.Transform, norm.TransformParameter, claim.Value, out var value))
+        {
+            return DisclosureResult.Denied(DenyReasonCode.TransformFailed, norm);
+        }
 
         return DisclosureResult.Disclosed(norm, value);
     }

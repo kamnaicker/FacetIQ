@@ -28,10 +28,7 @@ public class HistoryController : ControllerBase
         _users = users;
     }
 
-    /// <summary>
-    /// The decisions made about the caller, newest first. Every request is here, refusals
-    /// included, because a refusal is a decision about them too.
-    /// </summary>
+    /// <summary>The latest decisions about the caller, refusals included, newest first.</summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<DisclosureRecordResponse>>> Get(
         CancellationToken cancellationToken)
@@ -52,8 +49,7 @@ public class HistoryController : ControllerBase
 
         var records = await _records.ListForSubjectAsync(subject.Id, PageSize, cancellationToken);
 
-        // One lookup per distinct asker, run in turn: the request's database context refuses
-        // overlapping queries, and most pages are a few people asking many times.
+        // Cached per requester and run sequentially, as the DbContext cannot query concurrently.
         var addresses = new Dictionary<string, string?>();
         var responses = new List<DisclosureRecordResponse>(records.Count);
 

@@ -16,8 +16,7 @@ public sealed class SubjectRepository : ISubjectRepository
             .AsNoTracking()
             .SingleOrDefaultAsync(subject => subject.Id == subjectId, cancellationToken);
 
-    // Single rather than First: the user identifier is uniquely indexed, so two matches is a
-    // broken database, not a case to pick a winner from.
+    // Single: UserId is unique, so two matches means corrupt data and should throw.
     public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         _context.Subjects
             .AsNoTracking()

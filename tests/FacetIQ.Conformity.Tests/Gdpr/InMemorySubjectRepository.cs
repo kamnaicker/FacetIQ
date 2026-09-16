@@ -3,10 +3,7 @@ using FacetIQ.Domain.Entities;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// Holds at most one subject. Constructed empty, no caller owns the subject under test, so
-/// every request takes the governed path.
-/// </summary>
+/// <summary>Holds at most one subject. Empty means no requester is the owner, so norms always apply.</summary>
 internal sealed class InMemorySubjectRepository : ISubjectRepository
 {
     private Subject? _subject;

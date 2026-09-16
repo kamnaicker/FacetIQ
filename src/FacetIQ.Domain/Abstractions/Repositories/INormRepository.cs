@@ -4,27 +4,18 @@ namespace FacetIQ.Domain.Abstractions.Repositories;
 
 public interface INormRepository
 {
-    /// <summary>
-    /// The subject's current norms governing claims of the given key. Superseded revisions
-    /// are excluded: only the rule in force can govern a new request.
-    /// </summary>
+    /// <summary>The subject's norms in force on claims with this key.</summary>
     Task<IReadOnlyList<Norm>> GetGoverningNormsAsync(
         Guid subjectId,
         string attributeKey,
         CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Every norm the subject has in force, across all keys. Superseded revisions are excluded
-    /// for the same reason as above.
-    /// </summary>
+    /// <summary>The subject's norms in force across all keys.</summary>
     Task<IReadOnlyList<Norm>> ListGoverningAsync(Guid subjectId, CancellationToken cancellationToken);
 
-    /// <summary>Detecting conflicts is the caller's job and happens first.</summary>
+    /// <summary>Does not check for conflicts; the caller does that first.</summary>
     Task AddAsync(Norm norm, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Stops a rule governing without removing it, so audit records that name it stay meaningful.
-    /// Returns false when it was not in force.
-    /// </summary>
+    /// <summary>Sets SupersededAt. Returns false if the norm was not in force.</summary>
     Task<bool> RetireAsync(Guid id, DateTimeOffset retiredAt, CancellationToken cancellationToken);
 }

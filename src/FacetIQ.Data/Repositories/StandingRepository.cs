@@ -57,8 +57,7 @@ public sealed class StandingRepository : IStandingRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    // Updated in the database rather than on the entity, which is immutable. The pending clause
-    // is what makes a repeated accept a no-op instead of moving the timestamp.
+    // ExecuteUpdate because the entity is immutable. The null check keeps the first timestamp.
     public async Task<bool> AcceptAsync(
         Guid id,
         DateTimeOffset acceptedAt,

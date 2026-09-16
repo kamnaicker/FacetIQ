@@ -5,11 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FacetIQ.Data.Seeding;
 
 /// <summary>
-/// Creates the accounts the seeded example is written about, carrying the identifiers the seed
-/// rows already name. Nothing in the app schema is written and the operation is idempotent.
-///
-/// Development only: elsewhere the seeded subject stays unowned, since a demonstration profile
-/// should not be claimable on a deployed instance. This seeds, it does not migrate.
+/// Creates Identity accounts with the user ids SeedData uses. Idempotent. Development only, so
+/// the seeded profile cannot be signed into on a deployed instance.
 /// </summary>
 public static class DevelopmentUserSeeder
 {
@@ -45,8 +42,7 @@ public static class DevelopmentUserSeeder
 
             var result = await users.CreateAsync(user, Password);
 
-            // Creation reports failure rather than throwing, and a silently empty user table is
-            // a long hour of wondering why every sign-in is refused.
+            // CreateAsync reports failure instead of throwing.
             if (!result.Succeeded)
             {
                 throw new InvalidOperationException(

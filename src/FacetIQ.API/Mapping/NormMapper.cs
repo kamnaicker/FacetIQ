@@ -7,15 +7,7 @@ namespace FacetIQ.API.Mapping;
 
 public static class NormMapper
 {
-    /// <summary>
-    /// Enums are parsed rather than model-bound, so an unrecognised value is refused at the
-    /// boundary instead of arriving as a default. The action is derived from the transform and
-    /// deny reason, as <see cref="DisclosureResult.Disclosed"/> derives its outcome.
-    /// </summary>
-    /// <param name="invalidMember">
-    /// Which field was not recognised, so the refusal can name it. Three can fail here, unlike
-    /// the other mappers.
-    /// </param>
+    /// <param name="invalidMember">The request field that failed to parse, for the error response.</param>
     public static bool TryToDomain(
         CreateNormRequest dto,
         Guid subjectId,
@@ -25,19 +17,21 @@ public static class NormMapper
         norm = null!;
         invalidMember = null;
 
-        if (!TryParseOptional<Purpose>(dto.Purpose, out var purpose))
+        if (!EnumValue.TryParseOptional<Purpose>(dto.Purpose, out var purpose))
         {
             invalidMember = nameof(dto.Purpose);
             return false;
         }
 
-        if (!TryParseOptional<TransformKind>(dto.Transform, out var transform))
+        if (!EnumValue.TryParseOptional<TransformKind>(dto.Transform, out var transform))
         {
             invalidMember = nameof(dto.Transform);
             return false;
         }
 
-        if (!TryParseOptional<DenyReasonCode>(dto.DenyReason, out var denyReason))
+        // Every other reason is the engine's to give.
+        if (!EnumValue.TryParseOptional<DenyReasonCode>(dto.DenyReason, out var denyReason) ||
+            denyReason is not (null or DenyReasonCode.RefusedByRule))
         {
             invalidMember = nameof(dto.DenyReason);
             return false;
@@ -94,23 +88,4 @@ public static class NormMapper
         denyReason is not null ? ActionType.Deny
             : transform is not null && transform != TransformKind.None ? ActionType.Transform
             : ActionType.Return;
-
-    /// <summary>An absent value is a wildcard and succeeds as null; only a present one can fail.</summary>
-    private static bool TryParseOptional<T>(string? value, out T? parsed) where T : struct, Enum
-    {
-        if (value is null)
-        {
-            parsed = null;
-            return true;
-        }
-
-        if (Enum.TryParse<T>(value, ignoreCase: true, out var result))
-        {
-            parsed = result;
-            return true;
-        }
-
-        parsed = null;
-        return false;
-    }
 }

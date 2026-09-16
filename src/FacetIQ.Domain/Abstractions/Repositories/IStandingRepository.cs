@@ -4,10 +4,7 @@ namespace FacetIQ.Domain.Abstractions.Repositories;
 
 public interface IStandingRepository
 {
-    /// <summary>
-    /// The standings a requester holds towards a subject that have been accepted. Unaccepted
-    /// rows are never returned, so an assertion nobody agreed to cannot reach a decision.
-    /// </summary>
+    /// <summary>Accepted standings the requester holds towards the subject. Pending ones are excluded.</summary>
     Task<IReadOnlyList<Standing>> GetAcceptedAsync(
         Guid subjectId,
         string requesterUserId,
@@ -27,9 +24,6 @@ public interface IStandingRepository
 
     Task AddAsync(Standing standing, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Records acceptance. Returns false when the standing is gone or was already accepted, so a
-    /// repeated accept cannot move the timestamp.
-    /// </summary>
+    /// <summary>Returns false if missing or already accepted; the first timestamp is kept.</summary>
     Task<bool> AcceptAsync(Guid id, DateTimeOffset acceptedAt, CancellationToken cancellationToken);
 }

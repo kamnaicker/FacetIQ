@@ -15,10 +15,6 @@ public class AttributeControllerTests
 
     private static readonly Guid SubjectId = new("0a5f4d8e-0000-4000-8000-000000000201");
 
-    /// <summary>
-    /// A second copy of a claim adds nothing, and two rules releasing the same text through two
-    /// copies would be refused as conflicting. So the copy is refused on the field it repeats.
-    /// </summary>
     [Fact]
     public async Task DuplicateClaim_IsRefused_AndNotStored()
     {
@@ -33,10 +29,7 @@ public class AttributeControllerTests
         Assert.Single(claims.Rows);
     }
 
-    /// <summary>
-    /// Compared exactly. A different capitalisation is a different way of writing a name, and what
-    /// a person writes as their name is not normalised on their behalf.
-    /// </summary>
+    /// <summary>Names are not case-normalised.</summary>
     [Fact]
     public async Task DifferentCapitalisation_IsADifferentClaim()
     {
@@ -48,10 +41,6 @@ public class AttributeControllerTests
         Assert.Equal(2, claims.Rows.Count);
     }
 
-    /// <summary>
-    /// A claim a rule in force still releases is not deleted, and the refusal names that rule, so
-    /// what others see never changes without the subject deciding it.
-    /// </summary>
     [Fact]
     public async Task ClaimReleasedByALiveRule_CannotBeDeleted_AndTheRuleIsNamed()
     {
@@ -67,7 +56,7 @@ public class AttributeControllerTests
         Assert.Single(claims.Rows);
     }
 
-    /// <summary>The control: once no rule in force releases it, the claim is erased.</summary>
+    /// <summary>The control for the test above.</summary>
     [Fact]
     public async Task ClaimNoLiveRuleReleases_IsDeleted()
     {

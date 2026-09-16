@@ -3,12 +3,8 @@ using FacetIQ.Domain.Enums;
 using FacetIQ.Domain.Models;
 using FacetIQ.Services.Authoring;
 
-namespace FacetIQ.Services.Tests;
+namespace FacetIQ.Services.Tests.Authoring;
 
-/// <summary>
-/// The authoring half of the ambiguity story. The engine's tests assert what happens to a tie
-/// that already exists; these assert the subject is told while they can still act on it.
-/// </summary>
 public class ConflictDetectorTests
 {
     private static readonly Guid SubjectId = new("0a5f4d8e-0000-4000-8000-000000000001");
@@ -16,11 +12,7 @@ public class ConflictDetectorTests
     private static readonly Guid LegalName = new("0a5f4d8e-0000-4000-8000-000000000010");
     private static readonly Guid SocialName = new("0a5f4d8e-0000-4000-8000-000000000012");
 
-    /// <summary>
-    /// O8: the pair from <c>EquallySpecificNorms_AreRefusedAsAmbiguous</c>, caught one step
-    /// earlier. Both norms return, so comparing only the action would call this agreement and
-    /// store it. What they disagree about is which name is released.
-    /// </summary>
+    /// <summary>O8: a social request from a friend matches both at specificity 1.</summary>
     [Fact]
     public void EquallySpecificNorms_ThatSelectDifferentClaims_AreRefusedWhenAuthored()
     {
@@ -32,17 +24,21 @@ public class ConflictDetectorTests
         Assert.Same(proposed, conflict.Proposed);
         Assert.Same(existing, conflict.Existing);
         Assert.Equal(1, conflict.Specificity);
-
-        // The request that witnesses the collision: each norm binds the condition the other
-        // leaves open, so the overlap carries both.
         Assert.Equal("friend", conflict.OverlappingRelationship);
         Assert.Equal(Purpose.Social, conflict.OverlappingPurpose);
     }
 
-    /// <summary>
-    /// O8: the control. Equal scores alone are not a conflict. Without this, a detector refusing
-    /// every tie in score would pass the test above and still be wrong.
-    /// </summary>
+    /// <summary>O8: the ranker refuses any tie, so a rule releasing the same thing still collides.</summary>
+    [Fact]
+    public void EquallySpecificNorms_ThatReleaseTheSameClaim_AreRefusedWhenAuthored()
+    {
+        var existing = Rule(SocialName, purpose: Purpose.Social);
+        var proposed = Rule(SocialName, purpose: Purpose.Social);
+
+        Assert.Single(Detect(proposed, existing));
+    }
+
+    /// <summary>O8: equal scores alone are not a conflict.</summary>
     [Fact]
     public void EquallySpecificNorms_WithDisjointConditions_AreAccepted()
     {
@@ -53,13 +49,20 @@ public class ConflictDetectorTests
     }
 
     /// <summary>
-    /// O8: the first test's pair with the existing norm superseded and nothing else changed. A
-    /// norm is never edited in place, so without this a subject could never revise a rule -- the
-    /// revision would collide with what it replaces. A retired norm governs no request, so there
-    /// is none for it to collide over.
+    /// A requester holding both standings is refused as ambiguous at request time. Flagging the pair
+    /// here would stop a subject writing one rule per relationship.
     /// </summary>
     [Fact]
-    public void SupersededNorm_CannotCollide_SoAnEditDoesNotConflict()
+    public void NormsBoundToDifferentRelationships_AreAccepted()
+    {
+        var existing = Rule(LegalName, relationship: "colleague");
+        var proposed = Rule(SocialName, relationship: "friend");
+
+        Assert.Empty(Detect(proposed, existing));
+    }
+
+    [Fact]
+    public void RetiredNorm_CannotCollide()
     {
         var retired = Rule(LegalName, purpose: Purpose.Social, supersededAt: DateTimeOffset.UnixEpoch);
         var proposed = Rule(SocialName, relationship: "friend");
@@ -74,8 +77,6 @@ public class ConflictDetectorTests
         Guid attributeId,
         Purpose? purpose = null,
         string? relationship = null,
-        TransformKind transform = TransformKind.None,
-        string? parameter = null,
         DateTimeOffset? supersededAt = null) => new()
     {
         Id = Guid.NewGuid(),
@@ -84,9 +85,8 @@ public class ConflictDetectorTests
         AttributeId = attributeId,
         Purpose = purpose,
         Relationship = relationship,
-        Action = transform == TransformKind.None ? ActionType.Return : ActionType.Transform,
-        Transform = transform,
-        TransformParameter = parameter,
+        Action = ActionType.Return,
+        Transform = TransformKind.None,
         SupersededAt = supersededAt,
         JustifyingPrinciple = "Test rule."
     };

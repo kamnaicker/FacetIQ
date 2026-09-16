@@ -30,13 +30,7 @@ public class SubjectController : ControllerBase
         return subject is null ? NotFound() : Ok(new SubjectResponse { Id = subject.Id });
     }
 
-    /// <summary>
-    /// Creates the caller's profile, or returns the one they already hold. Idempotent, so the
-    /// client can call it on every sign in without checking first.
-    ///
-    /// An account and a profile are created separately and deliberately: registering proves who
-    /// you are to the system, and this is the point at which the system holds anything about you.
-    /// </summary>
+    /// <summary>Creates the caller's profile, or returns the existing one. Safe to call on every sign-in.</summary>
     [HttpPost]
     public async Task<ActionResult<SubjectResponse>> Post(CancellationToken cancellationToken)
     {

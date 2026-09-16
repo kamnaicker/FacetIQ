@@ -3,10 +3,7 @@ using FacetIQ.Domain.Entities;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// Applies the same filtering rules as the EF repository against an in-memory list, so a
-/// test exercises the decision logic rather than query translation.
-/// </summary>
+/// <summary>Same filters as NormRepository, over a list.</summary>
 internal sealed class InMemoryNormRepository : INormRepository
 {
     private readonly List<Norm> _norms;
@@ -22,6 +19,7 @@ internal sealed class InMemoryNormRepository : INormRepository
             .Where(norm =>
                 norm.SubjectId == subjectId &&
                 norm.SupersededAt is null &&
+                norm.Attribute.SubjectId == subjectId &&
                 norm.Attribute.Key == attributeKey)
             .ToList();
 
@@ -48,7 +46,6 @@ internal sealed class InMemoryNormRepository : INormRepository
         return Task.CompletedTask;
     }
 
-    // The evaluator never retires a rule, so nothing here needs to.
     public Task<bool> RetireAsync(Guid id, DateTimeOffset retiredAt, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 }

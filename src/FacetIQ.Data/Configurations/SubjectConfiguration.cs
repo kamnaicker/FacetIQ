@@ -17,8 +17,7 @@ public class SubjectConfiguration : IEntityTypeConfiguration<Subject>
             .HasMaxLength(450)
             .IsRequired();
 
-        // One domain subject per authentication identity. The constraint lives here rather
-        // than in the identity store, which knows nothing about subjects.
+        // One subject per account.
         builder.HasIndex(subject => subject.UserId).IsUnique();
 
         builder.HasMany(subject => subject.Attributes)

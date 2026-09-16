@@ -3,10 +3,7 @@ using FacetIQ.Domain.Entities;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// Keeps every record it is given so a test can assert on what the writer produced, including
-/// what it deliberately left out.
-/// </summary>
+/// <summary>Keeps written records in a list for assertions.</summary>
 internal sealed class RecordingAuditRepository : IAuditRecordRepository
 {
     public List<AuditRecord> Written { get; } = [];

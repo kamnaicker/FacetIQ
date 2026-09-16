@@ -24,10 +24,7 @@ public class AttributeController : ControllerBase
         _norms = norms;
     }
 
-    /// <summary>
-    /// The caller's own claims, returned as the whole set. Anyone else reads a claim through the
-    /// disclosure endpoint, where a norm decides which one they receive.
-    /// </summary>
+    /// <summary>The caller's own claims. Others read claims through /disclosure.</summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<AttributeResponse>>> Get(
         CancellationToken cancellationToken)
@@ -51,12 +48,7 @@ public class AttributeController : ControllerBase
         return Ok(claims.Select(AttributeMapper.ToContract).ToList());
     }
 
-    /// <summary>
-    /// Adds a claim. Contradictory claims are allowed, since the system does not adjudicate
-    /// between a person's accounts of themselves, but an identical one is refused: a second copy
-    /// adds nothing, and two rules releasing the same text through two copies would read as a
-    /// conflict between them.
-    /// </summary>
+    /// <summary>Adds a claim. Differing values under one key are allowed; an exact duplicate is not.</summary>
     [HttpPost]
     public async Task<ActionResult<AttributeResponse>> Post(
         CreateAttributeRequest dto,
@@ -87,7 +79,7 @@ public class AttributeController : ControllerBase
                 modelStateDictionary: ModelState);
         }
 
-        // Compared exactly. A different capitalisation or spelling is a different name.
+        // Case-sensitive: a different capitalisation is a different name.
         var held = await _attributes.ListByKeyAsync(subject.Id, attribute.Key, cancellationToken);
 
         if (held.Any(claim => claim.Value == attribute.Value))
@@ -104,10 +96,7 @@ public class AttributeController : ControllerBase
         return CreatedAtAction(nameof(Get), AttributeMapper.ToContract(attribute));
     }
 
-    /// <summary>
-    /// Erases a claim. Refused while a rule in force still releases it, and the refusal names those
-    /// rules, so nothing others can see changes behind the subject's back.
-    /// </summary>
+    /// <summary>Deletes a claim. Returns 409 listing the rules in force that still select it.</summary>
     [HttpDelete("{id:guid}")]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {

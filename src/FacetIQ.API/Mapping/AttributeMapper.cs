@@ -6,10 +6,7 @@ namespace FacetIQ.API.Mapping;
 
 public static class AttributeMapper
 {
-    /// <summary>
-    /// The collection purpose is parsed rather than model-bound, as in the other two mappers.
-    /// An absent purpose is no stated limit and succeeds; only an unrecognised one fails.
-    /// </summary>
+    /// <summary>False when CollectedFor is present but not a recognised purpose.</summary>
     public static bool TryToDomain(
         CreateAttributeRequest dto,
         Guid subjectId,
@@ -17,16 +14,9 @@ public static class AttributeMapper
     {
         attribute = null!;
 
-        Purpose? collectedFor = null;
-
-        if (dto.CollectedFor is not null)
+        if (!EnumValue.TryParseOptional<Purpose>(dto.CollectedFor, out var collectedFor))
         {
-            if (!Enum.TryParse<Purpose>(dto.CollectedFor, ignoreCase: true, out var parsed))
-            {
-                return false;
-            }
-
-            collectedFor = parsed;
+            return false;
         }
 
         attribute = new SubjectAttribute

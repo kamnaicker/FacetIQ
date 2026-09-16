@@ -12,11 +12,7 @@ namespace FacetIQ.Conformity.Tests.Gdpr;
 
 public class DisclosureControllerTests
 {
-    /// <summary>
-    /// O3: an unauthenticated request is refused before evaluation begins. The status alone
-    /// would not show that -- a caller cannot tell a refusal from a decision to refuse -- so
-    /// the assertion that matters is the one counting calls into the engine.
-    /// </summary>
+    /// <summary>O3: refused before evaluation. The call count, not the status, proves it.</summary>
     [Fact]
     public async Task UnauthenticatedRequest_NeverReachesEvaluation()
     {
@@ -29,10 +25,7 @@ public class DisclosureControllerTests
         Assert.Equal(0, evaluator.Calls);
     }
 
-    /// <summary>
-    /// The control for the test above: the same caller carrying an identifier does reach the
-    /// engine. Without this, a controller that never evaluated at all would pass O3.
-    /// </summary>
+    /// <summary>O3: the control for the test above.</summary>
     [Fact]
     public async Task AuthenticatedRequest_ReachesTheEngine()
     {
@@ -62,59 +55,14 @@ public class DisclosureControllerTests
         Purpose = "Social"
     };
 
-    /// <summary>
-    /// No address resolves, which is fine here: an unknown address still reaches the engine, so
-    /// the authenticated control passes and the unauthenticated test is untouched by lookup.
-    /// </summary>
+    /// <summary>Resolves no email. An unknown address still reaches the engine.</summary>
     private sealed class NoAccounts()
-        : UserManager<AppUser>(new UnusedStore(), null!, null!, null!, null!, null!, null!, null!, null!)
+        : UserManager<AppUser>(new UnusedUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
     {
         public override Task<AppUser?> FindByEmailAsync(string email) => Task.FromResult<AppUser?>(null);
     }
 
-    private sealed class UnusedStore : IUserStore<AppUser>
-    {
-        public void Dispose()
-        {
-        }
-
-        public Task<string> GetUserIdAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<string?> GetUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task SetUserNameAsync(AppUser user, string? userName, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<string?> GetNormalizedUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task SetNormalizedUserNameAsync(
-            AppUser user,
-            string? normalizedName,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
-
-        public Task<IdentityResult> CreateAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IdentityResult> UpdateAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IdentityResult> DeleteAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<AppUser?> FindByIdAsync(string userId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<AppUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    /// <summary>
-    /// Throws rather than returning, so an unnoticed call fails the test loudly. The counter
-    /// is what the assertion reads, and it stays at zero if the guard holds.
-    /// </summary>
+    /// <summary>Counts calls, then throws so an unexpected call cannot pass silently.</summary>
     private sealed class UnreachableEvaluator : IDisclosureEvaluator
     {
         public int Calls { get; private set; }

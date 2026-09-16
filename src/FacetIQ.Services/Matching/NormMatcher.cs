@@ -24,13 +24,7 @@ public sealed class NormMatcher : INormMatcher
         return candidates;
     }
 
-    /// <summary>
-    /// A null condition is a wildcard and admits any request. A bound condition must match
-    /// exactly, so a norm either applies in full or not at all.
-    ///
-    /// A bound relationship is satisfied by holding it, not by claiming it: the test is
-    /// membership of the resolved standings rather than equality with anything a caller sent.
-    /// </summary>
+    // Null matches anything. A bound relationship must be among the requester's accepted standings.
     private static bool Applies(Norm norm, DisclosureRequest request, IReadOnlySet<string> standings) =>
         (norm.Relationship is null || standings.Contains(norm.Relationship)) &&
         (norm.Purpose is null || norm.Purpose == request.Purpose);

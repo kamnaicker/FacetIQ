@@ -11,8 +11,7 @@ public class NormConfiguration : IEntityTypeConfiguration<Norm>
     {
         builder.ToTable("norms");
 
-        // Identity and revision together, because editing a norm creates a new row rather
-        // than altering the existing one.
+        // Composite so a later edit path can add revisions as new rows.
         builder.HasKey(norm => new { norm.Id, norm.Version });
 
         builder.Property(norm => norm.Relationship).HasMaxLength(64);
@@ -23,8 +22,7 @@ public class NormConfiguration : IEntityTypeConfiguration<Norm>
             .HasMaxLength(256)
             .IsRequired();
 
-        // Enums are stored by name so a migration that reorders them cannot silently
-        // reinterpret rules already written.
+        // Stored by name so reordering an enum cannot change the meaning of existing rows.
         builder.Property(norm => norm.Purpose).HasConversion<string>().HasMaxLength(32);
         builder.Property(norm => norm.Action).HasConversion<string>().HasMaxLength(32);
         builder.Property(norm => norm.Transform).HasConversion<string>().HasMaxLength(32);
@@ -35,7 +33,7 @@ public class NormConfiguration : IEntityTypeConfiguration<Norm>
             .HasForeignKey(norm => norm.AttributeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Matching starts from the subject's norms in force.
+        // Every lookup filters on subject and norms in force.
         builder.HasIndex(norm => new { norm.SubjectId, norm.SupersededAt });
 
         builder.HasData(SeedData.Norms);

@@ -8,10 +8,7 @@ using FacetIQ.Services.Transformation;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// Conformity tests. Each asserts one project objective against the decision the engine
-/// reaches and the record it leaves behind.
-/// </summary>
+/// <summary>Each test checks one project objective (O-tag) against the decision and its audit record.</summary>
 public class DisclosureEvaluatorTests
 {
     private const string RequesterUserId = "requester-1";
@@ -23,14 +20,10 @@ public class DisclosureEvaluatorTests
     private static readonly SubjectAttribute SocialName = Claim("name", "Amara", "social");
     private static readonly SubjectAttribute DateOfBirth = Claim("dateOfBirth", "1994-03-11", "legal", Purpose.Social);
 
-    /// <summary>Held by the test rather than taken from the evaluator, so a replay is independent.</summary>
-    private static readonly TransformService Transforms = new();
+    // Separate from the evaluator's instance so the replay is independent.
+    private static readonly TransformService Transforms = new(TimeProvider.System);
 
-    /// <summary>
-    /// O1: a subject reading their own claims receives every one of them, in the form they were
-    /// stored. The norm in force here would have selected one name and reshaped it, so the branch
-    /// running ahead of norm lookup is what this demonstrates.
-    /// </summary>
+    /// <summary>O1: the norm here would reformat one name, so getting all three proves norms were skipped.</summary>
     [Fact]
     public async Task SelfAccess_OwnAttributes_ReturnsAllUntransformed()
     {
@@ -48,11 +41,7 @@ public class DisclosureEvaluatorTests
         Assert.True(record.Transform is null or TransformKind.None);
     }
 
-    /// <summary>
-    /// O9: the same stored claim yields different representations across different contexts.
-    /// This is the project's central assertion, and the three names are irreducible -- none
-    /// can be derived from another, so selection cannot be replaced by transformation.
-    /// </summary>
+    /// <summary>O9: one key, three contexts, three different claims selected.</summary>
     [Fact]
     public async Task SameAttribute_ThreeContexts_ThreeRepresentations()
     {
@@ -72,11 +61,7 @@ public class DisclosureEvaluatorTests
         Assert.Equal("Amara", social.Value);
     }
 
-    /// <summary>
-    /// O10: two requests identical but for one condition return different representations. The
-    /// three-context test above varies purpose and relationship together; isolating one variable
-    /// is what makes this evidence that the condition is what moved the outcome.
-    /// </summary>
+    /// <summary>O10: only the relationship differs between the two requests.</summary>
     [Fact]
     public async Task SingleParameterChange_ChangesRepresentation()
     {
@@ -93,7 +78,7 @@ public class DisclosureEvaluatorTests
         Assert.Equal("Dr Amara Nwosu", asColleague.Value);
     }
 
-    /// <summary>O8: equally specific norms that both apply are a tie the engine refuses to break.</summary>
+    /// <summary>O8: two applicable norms at equal specificity are refused, not tie-broken.</summary>
     [Fact]
     public async Task EquallySpecificNorms_AreRefusedAsAmbiguous()
     {
@@ -109,10 +94,7 @@ public class DisclosureEvaluatorTests
         Assert.Equal(DenyReasonCode.AmbiguousNorms, result.DenyReason);
     }
 
-    /// <summary>
-    /// The control for the test above: two norms of equal specificity whose conditions cannot
-    /// both be satisfied never compete, so equal scores alone do not constitute a conflict.
-    /// </summary>
+    /// <summary>O8: the control. Equal scores with disjoint conditions never compete.</summary>
     [Fact]
     public async Task EquallySpecificNorms_WithDisjointConditions_DoNotCompete()
     {
@@ -143,11 +125,7 @@ public class DisclosureEvaluatorTests
         Assert.Equal("Dr Amara Nwosu", result.Value);
     }
 
-    /// <summary>
-    /// Standings resolve to a set, so a requester holds several at once and a norm bound to any
-    /// one of them applies. The old request contract carried a single relationship string, which
-    /// forced a person into one context per request; people are not so tidily divided.
-    /// </summary>
+    /// <summary>A requester can hold several standings; a norm bound to any one of them applies.</summary>
     [Fact]
     public async Task NormBoundToOneHeldStanding_AppliesWhenSeveralAreHeld()
     {
@@ -161,13 +139,7 @@ public class DisclosureEvaluatorTests
         Assert.Equal("Dr Amara Nwosu", result.Value);
     }
 
-    /// <summary>
-    /// Only an accepted standing reaches matching. A requester holding one never agreed to is
-    /// indistinguishable from one holding nothing, which is what makes acceptance load-bearing.
-    ///
-    /// That the body cannot reach the first outcome is enforced by the contract, not asserted
-    /// here: relationship is not a field on <see cref="DisclosureRequest"/>.
-    /// </summary>
+    /// <summary>A pending standing behaves the same as none.</summary>
     [Fact]
     public async Task AcceptedStanding_UnlocksTheNorm_PendingAndAbsentDoNot()
     {
@@ -194,10 +166,7 @@ public class DisclosureEvaluatorTests
         Assert.Equal("Amara", absent.Value);
     }
 
-    /// <summary>
-    /// O2: a claim collected for one purpose is not released for another, even where the subject
-    /// wrote a norm permitting exactly this request. The norm matches and is still overridden.
-    /// </summary>
+    /// <summary>O2: the collection purpose overrides a norm that matches.</summary>
     [Fact]
     public async Task IncompatiblePurpose_ReturnsDeny()
     {
@@ -210,10 +179,7 @@ public class DisclosureEvaluatorTests
         Assert.Null(result.Value);
     }
 
-    /// <summary>
-    /// A refusal the subject wrote is recorded as theirs, not as the engine's purpose override,
-    /// so the audit says which of the two happened.
-    /// </summary>
+    /// <summary>A rule's refusal is recorded as RefusedByRule, distinct from engine refusals.</summary>
     [Fact]
     public async Task AuthoredRefusal_IsRecordedAsRefusedByRule()
     {
@@ -226,7 +192,36 @@ public class DisclosureEvaluatorTests
         Assert.Same(refusal, result.Norm);
     }
 
-    /// <summary>O7: absence of an applicable norm is a refusal, never a best guess.</summary>
+    /// <summary>Only the engine may claim it refused, so a stored reason on a rule is not trusted.</summary>
+    [Fact]
+    public async Task AuthoredRefusal_CannotRecordAnEngineReason()
+    {
+        var refusal = Refusal(LegalName, purpose: Purpose.Social, reason: DenyReasonCode.NoMatchingNorm);
+
+        var result = await Evaluate([refusal], Ask("name", Purpose.Social));
+
+        Assert.Equal(DenyReasonCode.RefusedByRule, result.DenyReason);
+    }
+
+    /// <summary>O5: a transform that cannot apply is refused, not thrown, so it is still audited.</summary>
+    [Fact]
+    public async Task TransformThatCannotApply_IsRefusedAndAudited()
+    {
+        var audit = new RecordingAuditRepository();
+        var norms = new[] { Rule(SocialName, purpose: Purpose.Social, transform: TransformKind.Generalise) };
+
+        var result = await Evaluate(norms, Ask("name", Purpose.Social), audit);
+
+        Assert.Equal(ActionType.Deny, result.Outcome);
+        Assert.Equal(DenyReasonCode.TransformFailed, result.DenyReason);
+        Assert.Null(result.Value);
+
+        var record = Assert.Single(audit.Written);
+        Assert.Equal(DenyReasonCode.TransformFailed, record.DenyReason);
+        Assert.Equal(norms[0].Id, record.NormId);
+    }
+
+    /// <summary>O7: no applicable norm means Deny.</summary>
     [Fact]
     public async Task NoMatchingNorm_ReturnsDeny()
     {
@@ -239,11 +234,7 @@ public class DisclosureEvaluatorTests
         Assert.Null(result.Value);
     }
 
-    /// <summary>
-    /// O4: a transform returns a value that is coarser than the stored one and still true of
-    /// the subject. The released value was never stored, which is the step omission alone
-    /// cannot reach.
-    /// </summary>
+    /// <summary>O4: a transform releases a coarser value that was never stored.</summary>
     [Fact]
     public async Task TransformNorm_ReturnsCoarserTruthfulValue()
     {
@@ -259,10 +250,7 @@ public class DisclosureEvaluatorTests
         Assert.NotEqual(DateOfBirth.Value, result.Value);
     }
 
-    /// <summary>
-    /// O5: each of the three outcomes writes exactly one record. One audit instance is shared
-    /// across all three requests, so a path writing twice or not at all shows up in the count.
-    /// </summary>
+    /// <summary>O5: one shared audit log, so a missing or duplicate write shows in the count.</summary>
     [Fact]
     public async Task EveryOutcome_WritesExactlyOneAuditRecord()
     {
@@ -285,10 +273,7 @@ public class DisclosureEvaluatorTests
         Assert.Equal(ActionType.Deny, audit.Written[2].Outcome);
     }
 
-    /// <summary>
-    /// O6: the norm version, transform and parameter on the record, applied to the stored claim,
-    /// reproduce the released value.
-    /// </summary>
+    /// <summary>O6: replaying the recorded transform on the stored claim reproduces the value.</summary>
     [Fact]
     public async Task AuditRecord_ReconstructsDisclosure()
     {
@@ -306,15 +291,11 @@ public class DisclosureEvaluatorTests
         Assert.Equal(TransformKind.Generalise, record.Transform);
         Assert.Equal("18", record.TransformParameter);
 
-        var replayed = Transforms.Apply(record.Transform!.Value, record.TransformParameter, DateOfBirth.Value);
-
+        Assert.True(Transforms.TryApply(record.Transform!.Value, record.TransformParameter, DateOfBirth.Value, out var replayed));
         Assert.Equal(result.Value, replayed);
     }
 
-    /// <summary>
-    /// O6: no field of the record holds the value released. Every property is read rather than a
-    /// chosen few, so a field added later that copies the value fails this test.
-    /// </summary>
+    /// <summary>O6: checks every property, so a field added later that copies the value fails.</summary>
     [Fact]
     public async Task AuditRecord_ContainsNoDisclosedValue()
     {
@@ -361,7 +342,7 @@ public class DisclosureEvaluatorTests
             new InMemoryAttributeRepository(LegalName, ProfessionalName, SocialName, DateOfBirth),
             new NormMatcher(),
             new SpecificityRanker(),
-            new TransformService(),
+            new TransformService(TimeProvider.System),
             new AuditWriter(audit, TimeProvider.System));
 
         return await evaluator.EvaluateAsync(request, CancellationToken.None);
@@ -370,7 +351,7 @@ public class DisclosureEvaluatorTests
     private static DisclosureRequest Ask(string key, Purpose purpose) =>
         new(SubjectId, key, RequesterUserId, purpose, RequestChannel.Api);
 
-    /// <summary>An accepted standing. Pass <c>accepted: false</c> for one that was never agreed to.</summary>
+    /// <summary>Accepted unless <c>accepted: false</c>.</summary>
     private static Standing Held(string value, bool accepted = true) => new()
     {
         Id = Guid.NewGuid(),
@@ -397,8 +378,10 @@ public class DisclosureEvaluatorTests
         CollectedFor = collectedFor
     };
 
-    /// <summary>A rule that refuses rather than releases.</summary>
-    private static Norm Refusal(SubjectAttribute claim, Purpose? purpose = null) => new()
+    private static Norm Refusal(
+        SubjectAttribute claim,
+        Purpose? purpose = null,
+        DenyReasonCode reason = DenyReasonCode.RefusedByRule) => new()
     {
         Id = Guid.NewGuid(),
         Version = 1,
@@ -408,7 +391,7 @@ public class DisclosureEvaluatorTests
         Purpose = purpose,
         Action = ActionType.Deny,
         Transform = TransformKind.None,
-        DenyReason = DenyReasonCode.RefusedByRule,
+        DenyReason = reason,
         JustifyingPrinciple = "Test refusal."
     };
 

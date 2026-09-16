@@ -10,10 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// O5 and O6 from the subject's side: the records the engine writes are readable by the person
-/// they are about, and by nobody else.
-/// </summary>
+/// <summary>O5, O6: a subject reads only their own audit records.</summary>
 public class HistoryControllerTests
 {
     private const string OwnerUserId = "owner-1";
@@ -83,7 +80,7 @@ public class HistoryControllerTests
         DenyReason = outcome == ActionType.Deny ? DenyReasonCode.NoMatchingNorm : null
     };
 
-    /// <summary>Every identifier resolves to an address derived from it, so the mapping is visible.</summary>
+    /// <summary>Resolves any id to "{id}@example.test".</summary>
     private sealed class AccountsByIdentifier()
         : UserManager<AppUser>(new UnusedUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
     {

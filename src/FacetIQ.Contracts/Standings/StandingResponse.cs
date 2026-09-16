@@ -8,19 +8,19 @@ public sealed record StandingResponse
 
     public required string IssuerKind { get; init; }
 
-    /// <summary>Readable rather than an identifier: an institution's name, or the issuer's address.</summary>
+    /// <summary>Institution name, or the issuing subject's email.</summary>
     public required string Issuer { get; init; }
 
-    /// <summary>Who holds it. Null when the caller is the holder rather than the issuer.</summary>
+    /// <summary>Holder's email. Null when the caller is the holder.</summary>
     public string? Holder { get; init; }
 
     public required DateTimeOffset IssuedAt { get; init; }
 
-    /// <summary>Null while pending. Only accepted standings affect a decision.</summary>
+    /// <summary>Null while pending.</summary>
     public DateTimeOffset? AcceptedAt { get; init; }
 }
 
-/// <summary>Both directions, since a person both issues standings and holds them.</summary>
+/// <summary>Standings the caller issued, and standings issued to them.</summary>
 public sealed record StandingsResponse
 {
     public required IReadOnlyList<StandingResponse> Issued { get; init; }

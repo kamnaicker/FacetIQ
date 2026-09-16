@@ -12,8 +12,7 @@ public static class ServiceLayerExtensions
 {
     public static IServiceCollection AddServiceLayer(this IServiceCollection services)
     {
-        // Matching, ranking and transformation hold no state and touch no storage, so a
-        // single instance serves every request.
+        // Stateless and storage-free, so singletons.
         services.AddSingleton<INormMatcher, NormMatcher>();
         services.AddSingleton<ISpecificityRanker, SpecificityRanker>();
         services.AddSingleton<ITransformService, TransformService>();

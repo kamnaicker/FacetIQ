@@ -3,10 +3,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// Lets a test construct a UserManager whose lookups it overrides. Nothing else on it is ever
-/// called, and anything that is fails loudly.
-/// </summary>
+/// <summary>Store for a UserManager whose lookups a test overrides. Every member throws.</summary>
 internal sealed class UnusedUserStore : IUserStore<AppUser>
 {
     public void Dispose()

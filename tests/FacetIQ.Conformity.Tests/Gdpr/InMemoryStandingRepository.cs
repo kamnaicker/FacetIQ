@@ -3,10 +3,7 @@ using FacetIQ.Domain.Entities;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// Returns the standings it was given, already accepted. Tests that need to prove acceptance
-/// is load-bearing construct unaccepted rows themselves and assert they are filtered out.
-/// </summary>
+/// <summary>Same accepted-only filter as StandingRepository, over a list.</summary>
 internal sealed class InMemoryStandingRepository : IStandingRepository
 {
     private readonly IReadOnlyList<Standing> _standings;
@@ -25,7 +22,7 @@ internal sealed class InMemoryStandingRepository : IStandingRepository
                     standing.AcceptedAt is not null)
                 .ToList());
 
-    // The evaluator is the only thing under test here, and it reads accepted standings only.
+    // The evaluator only calls GetAcceptedAsync.
     public Task<IReadOnlyList<Standing>> ListIssuedBySubjectAsync(
         Guid subjectId,
         CancellationToken cancellationToken) => throw new NotSupportedException();

@@ -28,10 +28,7 @@ public class DisclosureController : ControllerBase
         _users = users;
     }
 
-    /// <summary>
-    /// Evaluates one disclosure request. The response varies with the caller and the stated
-    /// purpose, so the same route returns different representations of the same claim.
-    /// </summary>
+    /// <summary>Evaluates a disclosure request. A refusal is still a 200 with a Deny outcome.</summary>
     [HttpPost]
     public async Task<ActionResult<DisclosureResponseDto>> Post(
         DisclosureRequestDto dto,
@@ -50,7 +47,7 @@ public class DisclosureController : ControllerBase
         {
             ModelState.AddModelError(nameof(dto.Purpose), $"Unrecognised purpose '{dto.Purpose}'.");
 
-            // Stated explicitly: left unset, the result does not become a 400.
+            // Without an explicit status this is not a 400.
             return ValidationProblem(
                 statusCode: StatusCodes.Status400BadRequest,
                 modelStateDictionary: ModelState);
@@ -58,13 +55,11 @@ public class DisclosureController : ControllerBase
 
         var result = await _evaluator.EvaluateAsync(request, cancellationToken);
 
-        // A refusal is a completed evaluation, not a failed request, so it is a 200 with an outcome.
         return Ok(DisclosureMapper.ToContract(result));
     }
 
-    // An address with no profile resolves to no one rather than to an error. The engine then
-    // refuses exactly as it would for a real person with no matching rule, so the response cannot
-    // be used to learn whether someone has an account.
+    // An unknown address resolves to Guid.Empty and is refused as NoMatchingNorm, the same as a
+    // subject with no matching rule.
     private async Task<Guid> SubjectFor(string email, CancellationToken cancellationToken)
     {
         var user = await _users.FindByEmailAsync(email);

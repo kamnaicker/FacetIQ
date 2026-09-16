@@ -49,8 +49,7 @@ public class StandingController : ControllerBase
 
         var held = await _standings.ListHeldByAsync(userId, cancellationToken);
 
-        // One at a time: every lookup uses this request's database context, which refuses a second
-        // query while one is still open.
+        // Sequential: the lookups share one DbContext, which cannot run queries concurrently.
         var issuedResponses = new List<StandingResponse>();
         foreach (var standing in issued)
         {
@@ -67,8 +66,8 @@ public class StandingController : ControllerBase
     }
 
     /// <summary>
-    /// Issues a standing about someone else. It is inert until they accept, which is what stops
-    /// either party asserting a relationship about the other on their own.
+    /// Issues a standing about another account. It has no effect until they accept. Unlike
+    /// /disclosure, an unknown email is reported, as /register already reveals it.
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<StandingResponse>> Post(
@@ -89,7 +88,7 @@ public class StandingController : ControllerBase
             return Forbid();
         }
 
-        // Resolved here rather than in the domain, which names no identity store.
+        // Resolved here because the domain does not reference the identity store.
         var holder = await _users.FindByEmailAsync(dto.Email);
 
         if (holder?.Id is null)
@@ -110,8 +109,7 @@ public class StandingController : ControllerBase
                 modelStateDictionary: ModelState);
         }
 
-        // The same term for the same person twice adds nothing to matching and shows twice on
-        // screen. Compared as matching compares it, so a change of case is not a new standing.
+        // Case-insensitive, as matching is.
         var issued = await _standings.ListIssuedBySubjectAsync(subject.Id, cancellationToken);
 
         if (issued.Any(existing =>
@@ -155,8 +153,7 @@ public class StandingController : ControllerBase
 
         var standing = await _standings.FindAsync(id, cancellationToken);
 
-        // Not found rather than forbidden for someone else's standing, so the response does not
-        // confirm that it exists.
+        // 404 rather than 403 so another holder's standing is not confirmed to exist.
         if (standing is null || standing.RequesterUserId != userId)
         {
             return NotFound();
