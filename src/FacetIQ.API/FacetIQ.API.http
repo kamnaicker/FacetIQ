@@ -1,6 +1,26 @@
 @FacetIQ.API_HostAddress = http://localhost:5197
+@password = paste-password-here
+@token = paste-access-token-here
 
-GET {{FacetIQ.API_HostAddress}}/weatherforecast/
-Accept: application/json
+# Sign in as a seeded development account and copy accessToken into @token.
+POST {{FacetIQ.API_HostAddress}}/login
+Content-Type: application/json
+
+{
+  "email": "colleague.accepted@example.test",
+  "password": "{{password}}"
+}
+
+###
+
+POST {{FacetIQ.API_HostAddress}}/disclosure
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "subjectEmail": "amara@example.test",
+  "attributeKey": "name",
+  "purpose": "Clinical"
+}
 
 ###
