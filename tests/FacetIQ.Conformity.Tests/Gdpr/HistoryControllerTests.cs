@@ -82,7 +82,7 @@ public class HistoryControllerTests
 
     /// <summary>Resolves any id to "{id}@example.test".</summary>
     private sealed class AccountsByIdentifier()
-        : UserManager<AppUser>(new UnusedUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
+        : UserManager<AppUser>(new EmptyUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
     {
         public override Task<AppUser?> FindByIdAsync(string userId) =>
             Task.FromResult<AppUser?>(new AppUser { Id = userId, Email = $"{userId}@example.test" });

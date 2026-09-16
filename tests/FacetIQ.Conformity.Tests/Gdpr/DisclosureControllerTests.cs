@@ -57,7 +57,7 @@ public class DisclosureControllerTests
 
     /// <summary>Resolves no email. An unknown address still reaches the engine.</summary>
     private sealed class NoAccounts()
-        : UserManager<AppUser>(new UnusedUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
+        : UserManager<AppUser>(new EmptyUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
     {
         public override Task<AppUser?> FindByEmailAsync(string email) => Task.FromResult<AppUser?>(null);
     }

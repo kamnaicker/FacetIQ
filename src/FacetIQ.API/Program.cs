@@ -2,6 +2,7 @@ using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
 using FacetIQ.Data.Seeding;
+using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Services.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -24,6 +25,8 @@ builder.Services
     .AddIdentityApiEndpoints<AppUser>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AuthDbContext>();
+
+builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
 
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder()
