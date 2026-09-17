@@ -1,3 +1,4 @@
+using FacetIQ.API.Email;
 using FacetIQ.API.OpenApi;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
@@ -23,11 +24,26 @@ builder.Services.AddDataLayer(connectionString);
 builder.Services.AddServiceLayer();
 
 builder.Services
-    .AddIdentityApiEndpoints<AppUser>()
+    .AddIdentityApiEndpoints<AppUser>(options =>
+    {
+        // Lookups and standings key on email, so an address must be proven before it counts.
+        options.SignIn.RequireConfirmedEmail = true;
+        options.User.RequireUniqueEmail = true;
+    })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AuthDbContext>();
 
 builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
+
+builder.Services
+    .AddOptions<SmtpOptions>()
+    .Bind(builder.Configuration.GetSection(SmtpOptions.Section))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Singletons: MapIdentityApi resolves the sender once, from the root provider.
+builder.Services.AddSingleton<IMailTransport, SmtpMailTransport>();
+builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityEmailSender>();
 
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder()
