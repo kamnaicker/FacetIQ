@@ -1,5 +1,6 @@
 using FacetIQ.API.Email;
 using FacetIQ.Data.Identity;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MimeKit;
 
@@ -34,6 +35,18 @@ public class IdentityEmailSenderTests
         Assert.Contains("reset-code-123", message.HtmlBody);
     }
 
+    [Fact]
+    public async Task RepeatedEmailToTheSameAddress_IsNotSent()
+    {
+        var transport = new RecordingMailTransport();
+        var sender = Sender(transport);
+
+        await sender.SendConfirmationLinkAsync(new AppUser(), "riya@example.test", Link);
+        await sender.SendConfirmationLinkAsync(new AppUser(), "riya@example.test", Link);
+
+        Assert.Single(transport.Sent);
+    }
+
     private static IdentityEmailSender Sender(IMailTransport transport)
     {
         var options = Options.Create(new SmtpOptions
@@ -42,7 +55,11 @@ public class IdentityEmailSenderTests
             FromAddress = "no-reply@facetiq.test"
         });
 
-        return new IdentityEmailSender(transport, options);
+        return new IdentityEmailSender(
+            transport,
+            new RecipientThrottle(TimeProvider.System),
+            options,
+            NullLogger<IdentityEmailSender>.Instance);
     }
 
     private sealed class RecordingMailTransport : IMailTransport

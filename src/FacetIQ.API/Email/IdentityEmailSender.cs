@@ -9,12 +9,20 @@ namespace FacetIQ.API.Email;
 public sealed class IdentityEmailSender : IEmailSender<AppUser>
 {
     private readonly IMailTransport _transport;
+    private readonly RecipientThrottle _throttle;
     private readonly SmtpOptions _options;
+    private readonly ILogger<IdentityEmailSender> _logger;
 
-    public IdentityEmailSender(IMailTransport transport, IOptions<SmtpOptions> options)
+    public IdentityEmailSender(
+        IMailTransport transport,
+        RecipientThrottle throttle,
+        IOptions<SmtpOptions> options,
+        ILogger<IdentityEmailSender> logger)
     {
         _transport = transport;
+        _throttle = throttle;
         _options = options.Value;
+        _logger = logger;
     }
 
     public Task SendConfirmationLinkAsync(AppUser user, string email, string confirmationLink)
@@ -43,6 +51,14 @@ public sealed class IdentityEmailSender : IEmailSender<AppUser>
 
     private Task SendAsync(string email, string subject, string html)
     {
+        // Skipped quietly: the Identity endpoints return 200 either way, so nothing is revealed.
+        if (!_throttle.TryAcquire(email))
+        {
+            _logger.LogWarning("Email not sent: the recipient has reached its sending limit.");
+
+            return Task.CompletedTask;
+        }
+
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(_options.FromName, _options.FromAddress));
         message.To.Add(MailboxAddress.Parse(email));

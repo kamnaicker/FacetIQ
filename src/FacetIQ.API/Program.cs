@@ -1,5 +1,7 @@
+using System.Threading.RateLimiting;
 using FacetIQ.API.Email;
 using FacetIQ.API.OpenApi;
+using FacetIQ.API.RateLimiting;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
@@ -43,6 +45,7 @@ builder.Services
 
 // Singletons: MapIdentityApi resolves the sender once, from the root provider.
 builder.Services.AddSingleton<IMailTransport, SmtpMailTransport>();
+builder.Services.AddSingleton<RecipientThrottle>();
 builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityEmailSender>();
 
 builder.Services.AddAuthorizationBuilder()
@@ -57,6 +60,12 @@ builder.Services.AddCors(options => options.AddPolicy(BrowserClients, policy => 
     .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
     .AllowAnyHeader()
     .AllowAnyMethod()));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(AccountEmailRateLimit.Partition);
+});
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi(options =>
@@ -89,6 +98,9 @@ if (!app.Environment.IsDevelopment())
 
 // Before authentication, or the anonymous preflight is refused by the fallback policy.
 app.UseCors(BrowserClients);
+
+// After CORS, so a refused request still carries the headers a browser needs to read it.
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
