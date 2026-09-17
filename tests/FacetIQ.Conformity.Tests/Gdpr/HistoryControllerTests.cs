@@ -52,17 +52,19 @@ public class HistoryControllerTests
         Assert.IsType<ForbidResult>(response.Result);
     }
 
-    private static HistoryController ControllerFor(RecordingAuditRepository audit, ClaimsPrincipal caller) =>
-        new(
+    private static HistoryController ControllerFor(RecordingAuditRepository audit, ClaimsPrincipal caller)
+    {
+        return new HistoryController(
             new InMemorySubjectRepository(new Subject { Id = SubjectId, UserId = OwnerUserId }),
             audit,
-            new AccountsByIdentifier())
+            new InMemoryUserDirectory((AskerUserId, "asker-1@example.test")))
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { User = caller }
             }
         };
+    }
 
     private static ClaimsPrincipal Owner() =>
         new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, OwnerUserId)], "test"));
@@ -79,12 +81,4 @@ public class HistoryControllerTests
         Outcome = outcome,
         DenyReason = outcome == ActionType.Deny ? DenyReasonCode.NoMatchingNorm : null
     };
-
-    /// <summary>Resolves any id to "{id}@example.test".</summary>
-    private sealed class AccountsByIdentifier()
-        : UserManager<AppUser>(new EmptyUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
-    {
-        public override Task<AppUser?> FindByIdAsync(string userId) =>
-            Task.FromResult<AppUser?>(new AppUser { Id = userId, Email = $"{userId}@example.test" });
-    }
 }

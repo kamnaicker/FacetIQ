@@ -1,3 +1,4 @@
+using FacetIQ.API.OpenApi;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
@@ -42,7 +43,10 @@ builder.Services.AddCors(options => options.AddPolicy(BrowserClients, policy => 
     .AllowAnyMethod()));
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
 
 var app = builder.Build();
 
@@ -54,6 +58,7 @@ if (app.Environment.IsDevelopment())
     {
         options.WithOpenApiRoutePattern("/openapi/v1.json");
         options.WithTheme(ScalarTheme.DeepSpace);
+        options.AddPreferredSecuritySchemes("Bearer");
     }).AllowAnonymous();
 
     // Accounts for the seeded user ids. Migrations are not applied here.

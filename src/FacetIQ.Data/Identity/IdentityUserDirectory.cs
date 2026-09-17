@@ -20,7 +20,13 @@ namespace FacetIQ.Data.Identity
         {
             var user = await _users.FindByEmailAsync(email);
 
-            return user?.Id;
+            // An unconfirmed address may belong to someone else.
+            if (user is null || !user.EmailConfirmed)
+            {
+                return null;
+            }
+
+            return user.Id;
         }
 
         public async Task<string?> FindEmailAsync(string userId, CancellationToken cancellationToken)

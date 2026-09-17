@@ -5,7 +5,8 @@ namespace FacetIQ.Data.Tests.Identity;
 
 public class IdentityUserDirectoryTests
 {
-    private static readonly AppUser Riya = new() { Id = "riya", Email = "riya@example.test" };
+    private static readonly AppUser Riya = new() { Id = "riya", Email = "riya@example.test", EmailConfirmed = true };
+    private static readonly AppUser Sam = new() { Id = "sam", Email = "sam@example.test", EmailConfirmed = false };
 
     [Fact]
     public async Task KnownEmail_ReturnsUserId()
@@ -19,6 +20,14 @@ public class IdentityUserDirectoryTests
     public async Task UnknownEmail_ReturnsNull()
     {
         var userId = await Directory().FindUserIdByEmailAsync("nobody@example.test", CancellationToken.None);
+
+        Assert.Null(userId);
+    }
+
+    [Fact]
+    public async Task UnconfirmedEmail_ReturnsNull()
+    {
+        var userId = await Directory().FindUserIdByEmailAsync("sam@example.test", CancellationToken.None);
 
         Assert.Null(userId);
     }
@@ -41,7 +50,7 @@ public class IdentityUserDirectoryTests
 
     private static IdentityUserDirectory Directory()
     {
-        return new IdentityUserDirectory(new SeededUserManager(Riya));
+        return new IdentityUserDirectory(new SeededUserManager(Riya, Sam));
     }
 
     private sealed class SeededUserManager : UserManager<AppUser>

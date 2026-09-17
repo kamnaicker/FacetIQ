@@ -1,9 +1,7 @@
 using System.Security.Claims;
 using FacetIQ.Contracts.Disclosure;
-using FacetIQ.Data.Identity;
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Controllers;
@@ -16,12 +14,12 @@ public class HistoryController : ControllerBase
 
     private readonly ISubjectRepository _subjects;
     private readonly IAuditRecordRepository _records;
-    private readonly UserManager<AppUser> _users;
+    private readonly IUserDirectory _users;
 
     public HistoryController(
         ISubjectRepository subjects,
         IAuditRecordRepository records,
-        UserManager<AppUser> users)
+        IUserDirectory users)
     {
         _subjects = subjects;
         _records = records;
@@ -57,7 +55,7 @@ public class HistoryController : ControllerBase
         {
             if (!addresses.TryGetValue(record.RequesterUserId, out var address))
             {
-                address = (await _users.FindByIdAsync(record.RequesterUserId))?.Email;
+                address = await _users.FindEmailAsync(record.RequesterUserId, cancellationToken);
                 addresses[record.RequesterUserId] = address;
             }
 

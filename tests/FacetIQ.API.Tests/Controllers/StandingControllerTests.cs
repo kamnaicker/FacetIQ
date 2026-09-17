@@ -24,6 +24,7 @@ public class StandingControllerTests
 
     [Fact]
     public async Task IssuedStanding_IsPending_UntilTheHolderAccepts()
+
     {
         var standings = new InMemoryStandings();
 
@@ -151,7 +152,7 @@ public class StandingControllerTests
     }
 
     private static StandingController ControllerFor(string userId, InMemoryStandings standings) =>
-        new(standings, new Subjects(), new StubUsers(), new FixedClock())
+        new StandingController(standings, new Subjects(), new SingleContextUserDirectory(), new FixedClock())
         {
             ControllerContext = new ControllerContext
             {
@@ -252,84 +253,53 @@ public class StandingControllerTests
             throw new NotSupportedException();
     }
 
-    /// <summary>
-    /// Overrides the two virtual lookups the controller uses. Throws on overlapping calls, as EF
-    /// does when one DbContext runs two queries at once.
-    /// </summary>
-    private sealed class StubUsers()
-        : UserManager<AppUser>(new UnusedStore(), null!, null!, null!, null!, null!, null!, null!, null!)
+    private sealed class SingleContextUserDirectory : IUserDirectory
     {
-        private static readonly AppUser[] Accounts =
-        [
-            new() { Id = SamUserId, Email = SamEmail },
-            new() { Id = RiyaUserId, Email = RiyaEmail },
+        private static readonly (string UserId, string Email)[] Accounts =
+       [
+           (SamUserId, SamEmail),
+            (RiyaUserId, RiyaEmail),
         ];
 
         private int _inFlight;
 
-        public override Task<AppUser?> FindByEmailAsync(string email) =>
-            OneAtATime(() => Accounts.SingleOrDefault(account => account.Email == email));
-
-        public override Task<AppUser?> FindByIdAsync(string userId) =>
-            OneAtATime(() => Accounts.SingleOrDefault(account => account.Id == userId));
-
-        private async Task<AppUser?> OneAtATime(Func<AppUser?> lookup)
+        public async Task<string?> FindUserIdByEmailAsync(string email, CancellationToken cancellationToken)
         {
-            if (Interlocked.Increment(ref _inFlight) > 1)
-            {
-                throw new InvalidOperationException("A second operation was started on this context.");
-            }
-
             try
             {
-                await Task.Yield();
+                await EnterAsync();
 
-                return lookup();
+                return Accounts.FirstOrDefault(account => account.Email == email).UserId;
             }
             finally
             {
                 Interlocked.Decrement(ref _inFlight);
             }
         }
-    }
 
-    private sealed class UnusedStore : IUserStore<AppUser>
-    {
-        public void Dispose()
+        public async Task<string?> FindEmailAsync(string userId, CancellationToken cancellationToken)
         {
+            try
+            {
+                await EnterAsync();
+
+                return Accounts.FirstOrDefault(account => account.UserId == userId).Email;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _inFlight);
+            }
         }
 
-        public Task<string> GetUserIdAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+        private async Task EnterAsync()
+        {
+            if (Interlocked.Increment(ref _inFlight) > 1)
+            {
+                throw new InvalidOperationException("A second operation was started on this context.");
+            }
 
-        public Task<string?> GetUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task SetUserNameAsync(AppUser user, string? userName, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<string?> GetNormalizedUserNameAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task SetNormalizedUserNameAsync(
-            AppUser user,
-            string? normalizedName,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
-
-        public Task<IdentityResult> CreateAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IdentityResult> UpdateAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IdentityResult> DeleteAsync(AppUser user, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<AppUser?> FindByIdAsync(string userId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<AppUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            await Task.Yield();
+        }
     }
 
     private sealed class FixedClock : TimeProvider

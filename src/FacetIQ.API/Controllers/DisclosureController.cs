@@ -1,11 +1,9 @@
 using System.Security.Claims;
 using FacetIQ.API.Mapping;
 using FacetIQ.Contracts.Disclosure;
-using FacetIQ.Data.Identity;
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Abstractions.Services;
 using FacetIQ.Domain.Enums;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Controllers;
@@ -16,12 +14,12 @@ public class DisclosureController : ControllerBase
 {
     private readonly IDisclosureEvaluator _evaluator;
     private readonly ISubjectRepository _subjects;
-    private readonly UserManager<AppUser> _users;
+    private readonly IUserDirectory _users;
 
     public DisclosureController(
         IDisclosureEvaluator evaluator,
         ISubjectRepository subjects,
-        UserManager<AppUser> users)
+        IUserDirectory users)
     {
         _evaluator = evaluator;
         _subjects = subjects;
@@ -62,14 +60,14 @@ public class DisclosureController : ControllerBase
     // subject with no matching rule.
     private async Task<Guid> SubjectFor(string email, CancellationToken cancellationToken)
     {
-        var user = await _users.FindByEmailAsync(email);
+        var userId = await _users.FindUserIdByEmailAsync(email, cancellationToken);
 
-        if (user is null)
+        if (userId is null)
         {
             return Guid.Empty;
         }
 
-        var subject = await _subjects.FindByUserIdAsync(user.Id, cancellationToken);
+        var subject = await _subjects.FindByUserIdAsync(userId, cancellationToken);
 
         return subject?.Id ?? Guid.Empty;
     }

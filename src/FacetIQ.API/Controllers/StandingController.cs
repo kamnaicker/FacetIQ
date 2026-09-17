@@ -1,10 +1,8 @@
 using System.Security.Claims;
 using FacetIQ.Contracts.Standings;
-using FacetIQ.Data.Identity;
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
 using FacetIQ.Domain.Enums;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Controllers;
@@ -15,13 +13,13 @@ public class StandingController : ControllerBase
 {
     private readonly IStandingRepository _standings;
     private readonly ISubjectRepository _subjects;
-    private readonly UserManager<AppUser> _users;
+    private readonly IUserDirectory _users;
     private readonly TimeProvider _clock;
 
     public StandingController(
         IStandingRepository standings,
         ISubjectRepository subjects,
-        UserManager<AppUser> users,
+        IUserDirectory users,
         TimeProvider clock)
     {
         _standings = standings;
@@ -53,13 +51,13 @@ public class StandingController : ControllerBase
         var issuedResponses = new List<StandingResponse>();
         foreach (var standing in issued)
         {
-            issuedResponses.Add(await ToContract(standing, withHolder: true));
+            issuedResponses.Add(await ToContract(standing, withHolder: true, cancellationToken));
         }
 
         var heldResponses = new List<StandingResponse>();
         foreach (var standing in held)
         {
-            heldResponses.Add(await ToContract(standing, withHolder: false));
+            heldResponses.Add(await ToContract(standing, withHolder: false, cancellationToken));
         }
 
         return Ok(new StandingsResponse { Issued = issuedResponses, Held = heldResponses });
@@ -89,9 +87,9 @@ public class StandingController : ControllerBase
         }
 
         // Resolved here because the domain does not reference the identity store.
-        var holder = await _users.FindByEmailAsync(dto.Email);
+        var holderId = await _users.FindUserIdByEmailAsync(dto.Email, cancellationToken);
 
-        if (holder?.Id is null)
+        if (holderId is null)
         {
             ModelState.AddModelError(nameof(dto.Email), "No account uses that address.");
 
@@ -100,7 +98,7 @@ public class StandingController : ControllerBase
                 modelStateDictionary: ModelState);
         }
 
-        if (holder.Id == userId)
+        if (holderId == userId)
         {
             ModelState.AddModelError(nameof(dto.Email), "A standing describes someone else.");
 
@@ -113,7 +111,7 @@ public class StandingController : ControllerBase
         var issued = await _standings.ListIssuedBySubjectAsync(subject.Id, cancellationToken);
 
         if (issued.Any(existing =>
-                existing.RequesterUserId == holder.Id &&
+                existing.RequesterUserId == holderId &&
                 string.Equals(existing.Value, dto.Value, StringComparison.OrdinalIgnoreCase)))
         {
             ModelState.AddModelError(nameof(dto.Value), "You have already added them as that.");
@@ -127,7 +125,7 @@ public class StandingController : ControllerBase
         {
             Id = Guid.NewGuid(),
             SubjectId = subject.Id,
-            RequesterUserId = holder.Id,
+            RequesterUserId = holderId,
             Value = dto.Value,
             IssuerKind = IssuerKind.Subject,
             Issuer = userId,
@@ -137,7 +135,7 @@ public class StandingController : ControllerBase
 
         await _standings.AddAsync(standing, cancellationToken);
 
-        return Ok(await ToContract(standing, withHolder: true));
+        return Ok(await ToContract(standing, withHolder: true, cancellationToken));
     }
 
     /// <summary>Accepts a standing issued about the caller. Only the holder can.</summary>
@@ -164,7 +162,7 @@ public class StandingController : ControllerBase
         return NoContent();
     }
 
-    private async Task<StandingResponse> ToContract(Standing standing, bool withHolder)
+    private async Task<StandingResponse> ToContract(Standing standing, bool withHolder, CancellationToken cancellationToken)
     {
         return new StandingResponse
         {
@@ -172,18 +170,18 @@ public class StandingController : ControllerBase
             Value = standing.Value,
             IssuerKind = standing.IssuerKind.ToString(),
             Issuer = standing.IssuerKind == IssuerKind.Subject
-                ? await AddressOf(standing.Issuer)
+                ? await AddressOf(standing.Issuer, cancellationToken)
                 : standing.Issuer,
-            Holder = withHolder ? await AddressOf(standing.RequesterUserId) : null,
+            Holder = withHolder ? await AddressOf(standing.RequesterUserId, cancellationToken) : null,
             IssuedAt = standing.IssuedAt,
             AcceptedAt = standing.AcceptedAt,
         };
     }
 
-    private async Task<string> AddressOf(string userId)
+    private async Task<string> AddressOf(string userId, CancellationToken cancellationToken)
     {
-        var user = await _users.FindByIdAsync(userId);
+        var userEmail = await _users.FindEmailAsync(userId, cancellationToken);
 
-        return user?.Email ?? userId;
+        return userEmail ?? userId;
     }
 }

@@ -1,11 +1,9 @@
 using System.Security.Claims;
 using FacetIQ.API.Controllers;
 using FacetIQ.Contracts.Disclosure;
-using FacetIQ.Data.Identity;
 using FacetIQ.Domain.Abstractions.Services;
 using FacetIQ.Domain.Models;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.Conformity.Tests.Gdpr;
@@ -39,14 +37,16 @@ public class DisclosureControllerTests
         Assert.Equal(1, evaluator.Calls);
     }
 
-    private static DisclosureController ControllerFor(IDisclosureEvaluator evaluator, ClaimsPrincipal caller) =>
-        new(evaluator, new InMemorySubjectRepository(), new NoAccounts())
+    private static DisclosureController ControllerFor(IDisclosureEvaluator evaluator, ClaimsPrincipal caller)
+    {
+        return new DisclosureController(evaluator, new InMemorySubjectRepository(), new InMemoryUserDirectory())
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { User = caller }
             }
         };
+    }
 
     private static DisclosureRequestDto Asking(string attributeKey) => new()
     {
@@ -54,13 +54,6 @@ public class DisclosureControllerTests
         AttributeKey = attributeKey,
         Purpose = "Social"
     };
-
-    /// <summary>Resolves no email. An unknown address still reaches the engine.</summary>
-    private sealed class NoAccounts()
-        : UserManager<AppUser>(new EmptyUserStore(), null!, null!, null!, null!, null!, null!, null!, null!)
-    {
-        public override Task<AppUser?> FindByEmailAsync(string email) => Task.FromResult<AppUser?>(null);
-    }
 
     /// <summary>Counts calls, then throws so an unexpected call cannot pass silently.</summary>
     private sealed class UnreachableEvaluator : IDisclosureEvaluator
