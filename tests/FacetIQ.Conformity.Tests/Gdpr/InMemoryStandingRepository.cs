@@ -41,4 +41,9 @@ internal sealed class InMemoryStandingRepository : IStandingRepository
         Guid id,
         DateTimeOffset acceptedAt,
         CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        throw new NotSupportedException();
+    }
 }

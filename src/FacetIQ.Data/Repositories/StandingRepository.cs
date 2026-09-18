@@ -71,4 +71,13 @@ public sealed class StandingRepository : IStandingRepository
 
         return updated > 0;
     }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await _context.Standings
+            .Where(standing => standing.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return deleted > 0;
+    }
 }

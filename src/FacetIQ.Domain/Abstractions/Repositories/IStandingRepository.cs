@@ -26,4 +26,7 @@ public interface IStandingRepository
 
     /// <summary>Returns false if missing or already accepted; the first timestamp is kept.</summary>
     Task<bool> AcceptAsync(Guid id, DateTimeOffset acceptedAt, CancellationToken cancellationToken);
+
+    /// <summary>Returns false if the standing did not exist.</summary>
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 }

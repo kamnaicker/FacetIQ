@@ -162,6 +162,39 @@ public class StandingController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Removes a standing. The holder or the subject it is held towards can.</summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var standing = await _standings.FindAsync(id, cancellationToken);
+
+        if (standing is null)
+        {
+            return NotFound();
+        }
+
+        var subject = await _subjects.FindByUserIdAsync(userId, cancellationToken);
+        var isHolder = standing.RequesterUserId == userId;
+        var isSubject = subject is not null && standing.SubjectId == subject.Id;
+
+        // 404 rather than 403 so a standing the caller is not party to is not confirmed to exist.
+        if (!isHolder && !isSubject)
+        {
+            return NotFound();
+        }
+
+        await _standings.DeleteAsync(id, cancellationToken);
+
+        return NoContent();
+    }
+
     private async Task<StandingResponse> ToContract(Standing standing, bool withHolder, CancellationToken cancellationToken)
     {
         return new StandingResponse

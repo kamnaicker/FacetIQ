@@ -75,6 +75,68 @@ public class StandingControllerTests
     }
 
     [Fact]
+    public async Task HolderCanDeclineAPendingStanding()
+    {
+        var standings = new InMemoryStandings();
+        await ControllerFor(SamUserId, standings).Post(Issue(RiyaEmail), CancellationToken.None);
+        var id = Assert.Single(standings.Rows).Id;
+
+        var response = await ControllerFor(RiyaUserId, standings).Delete(id, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(response);
+        Assert.Empty(standings.Rows);
+    }
+
+    [Fact]
+    public async Task HolderCanWithdrawAnAcceptedStanding()
+    {
+        var standings = new InMemoryStandings();
+        await ControllerFor(SamUserId, standings).Post(Issue(RiyaEmail), CancellationToken.None);
+        var id = Assert.Single(standings.Rows).Id;
+        await ControllerFor(RiyaUserId, standings).Accept(id, CancellationToken.None);
+
+        var response = await ControllerFor(RiyaUserId, standings).Delete(id, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(response);
+        Assert.Empty(await standings.GetAcceptedAsync(SamSubjectId, RiyaUserId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task SubjectCanRemoveAStandingHeldTowardsThem()
+    {
+        var standings = new InMemoryStandings();
+        await ControllerFor(SamUserId, standings).Post(Issue(RiyaEmail), CancellationToken.None);
+        var id = Assert.Single(standings.Rows).Id;
+
+        var response = await ControllerFor(SamUserId, standings).Delete(id, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(response);
+        Assert.Empty(standings.Rows);
+    }
+
+    /// <summary>Answered as 404, the same as a standing that does not exist.</summary>
+    [Fact]
+    public async Task SomeoneElseCannotRemoveAStanding()
+    {
+        var standings = new InMemoryStandings();
+        await ControllerFor(SamUserId, standings).Post(Issue(RiyaEmail), CancellationToken.None);
+        var id = Assert.Single(standings.Rows).Id;
+
+        var response = await ControllerFor("mallory", standings).Delete(id, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(response);
+        Assert.Single(standings.Rows);
+    }
+
+    [Fact]
+    public async Task MissingStanding_IsNotFound()
+    {
+        var response = await ControllerFor(SamUserId, new InMemoryStandings()).Delete(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(response);
+    }
+
+    [Fact]
     public async Task StandingCannotDescribeTheIssuer()
     {
         var standings = new InMemoryStandings();
@@ -235,6 +297,13 @@ public class StandingControllerTests
             };
 
             return Task.FromResult(true);
+        }
+
+        public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+        {
+            var removed = Rows.RemoveAll(standing => standing.Id == id);
+
+            return Task.FromResult(removed > 0);
         }
     }
 
