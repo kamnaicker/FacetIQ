@@ -21,9 +21,7 @@ public sealed class AuditWriter : IAuditWriter
         DisclosureResult result,
         CancellationToken cancellationToken)
     {
-        // The released value is not copied here. The norm revision and the transform applied
-        // are enough to derive it, so the record stays verifiable without duplicating the
-        // subject's data into a second store.
+        // No value field: see AuditRecord.
         var record = new AuditRecord
         {
             Id = Guid.NewGuid(),

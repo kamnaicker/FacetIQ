@@ -1,15 +1,12 @@
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
 
-namespace FacetIQ.Services.Tests;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
-/// <summary>
-/// Holds at most one subject. Constructed empty, no caller owns the subject under test, so
-/// every request takes the governed path.
-/// </summary>
+/// <summary>Holds at most one subject. Empty means no requester is the owner, so norms always apply.</summary>
 internal sealed class InMemorySubjectRepository : ISubjectRepository
 {
-    private readonly Subject? _subject;
+    private Subject? _subject;
 
     public InMemorySubjectRepository(Subject? subject = null) => _subject = subject;
 
@@ -18,4 +15,11 @@ internal sealed class InMemorySubjectRepository : ISubjectRepository
 
     public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         Task.FromResult(_subject?.UserId == userId ? _subject : null);
+
+    public Task AddAsync(Subject subject, CancellationToken cancellationToken)
+    {
+        _subject = subject;
+
+        return Task.CompletedTask;
+    }
 }

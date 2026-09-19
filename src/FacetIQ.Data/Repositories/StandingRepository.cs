@@ -24,4 +24,60 @@ public sealed class StandingRepository : IStandingRepository
                 standing.AcceptedAt != null)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Standing>> ListIssuedBySubjectAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Standings
+            .AsNoTracking()
+            .Where(standing => standing.SubjectId == subjectId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Standing>> ListHeldByAsync(
+        string requesterUserId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Standings
+            .AsNoTracking()
+            .Where(standing => standing.RequesterUserId == requesterUserId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<Standing?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        _context.Standings
+            .AsNoTracking()
+            .SingleOrDefaultAsync(standing => standing.Id == id, cancellationToken);
+
+    public async Task AddAsync(Standing standing, CancellationToken cancellationToken)
+    {
+        _context.Standings.Add(standing);
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    // ExecuteUpdate because the entity is immutable. The null check keeps the first timestamp.
+    public async Task<bool> AcceptAsync(
+        Guid id,
+        DateTimeOffset acceptedAt,
+        CancellationToken cancellationToken)
+    {
+        var updated = await _context.Standings
+            .Where(standing => standing.Id == id && standing.AcceptedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(standing => standing.AcceptedAt, acceptedAt),
+                cancellationToken);
+
+        return updated > 0;
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await _context.Standings
+            .Where(standing => standing.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return deleted > 0;
+    }
 }

@@ -30,8 +30,7 @@ public class AuditRecordConfiguration : IEntityTypeConfiguration<AuditRecord>
         builder.Property(record => record.DenyReason).HasConversion<string>().HasMaxLength(32);
         builder.Property(record => record.Transform).HasConversion<string>().HasMaxLength(32);
 
-        // No foreign keys are declared. An audit record must survive the deletion of the
-        // subject and the norm it describes, so it holds their identifiers as plain values.
+        // No foreign keys, so records survive deletion of what they reference. Indexed for history.
         builder.HasIndex(record => new { record.SubjectId, record.Timestamp });
     }
 }

@@ -1,7 +1,7 @@
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
 
-namespace FacetIQ.Services.Tests;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 internal sealed class InMemoryAttributeRepository : IAttributeRepository
 {
@@ -33,4 +33,7 @@ internal sealed class InMemoryAttributeRepository : IAttributeRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<bool> DeleteAsync(Guid attributeId, CancellationToken cancellationToken) =>
+        Task.FromResult(_attributes.RemoveAll(attribute => attribute.Id == attributeId) > 0);
 }

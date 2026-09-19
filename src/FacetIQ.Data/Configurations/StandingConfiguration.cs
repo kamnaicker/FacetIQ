@@ -17,7 +17,7 @@ public class StandingConfiguration : IEntityTypeConfiguration<Standing>
             .HasMaxLength(450)
             .IsRequired();
 
-        // Matches the norm's relationship column, since one is tested against the other.
+        // Same length as Norm.Relationship, which it is matched against.
         builder.Property(standing => standing.Value)
             .HasMaxLength(64)
             .IsRequired();
@@ -30,7 +30,7 @@ public class StandingConfiguration : IEntityTypeConfiguration<Standing>
             .HasConversion<string>()
             .HasMaxLength(32);
 
-        // Resolution starts from the pair a request names, and only accepted rows are read.
+        // For GetAcceptedAsync.
         builder.HasIndex(standing => new { standing.SubjectId, standing.RequesterUserId });
 
         builder.HasData(SeedData.Standings);

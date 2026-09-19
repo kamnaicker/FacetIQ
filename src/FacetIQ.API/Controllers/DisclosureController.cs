@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FacetIQ.API.Mapping;
 using FacetIQ.Contracts.Disclosure;
+using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Abstractions.Services;
 using FacetIQ.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -12,13 +13,20 @@ namespace FacetIQ.API.Controllers;
 public class DisclosureController : ControllerBase
 {
     private readonly IDisclosureEvaluator _evaluator;
+    private readonly ISubjectRepository _subjects;
+    private readonly IUserDirectory _users;
 
-    public DisclosureController(IDisclosureEvaluator evaluator) => _evaluator = evaluator;
+    public DisclosureController(
+        IDisclosureEvaluator evaluator,
+        ISubjectRepository subjects,
+        IUserDirectory users)
+    {
+        _evaluator = evaluator;
+        _subjects = subjects;
+        _users = users;
+    }
 
-    /// <summary>
-    /// Evaluates one disclosure request. The response varies with the caller and the stated
-    /// purpose, so the same route returns different representations of the same claim.
-    /// </summary>
+    /// <summary>Evaluates a disclosure request. A refusal is still a 200 with a Deny outcome.</summary>
     [HttpPost]
     public async Task<ActionResult<DisclosureResponseDto>> Post(
         DisclosureRequestDto dto,
@@ -31,15 +39,36 @@ public class DisclosureController : ControllerBase
             return Unauthorized();
         }
 
-        if (!DisclosureMapper.TryToDomain(dto, requesterUserId, RequestChannel.Api, out var request))
+        var subjectId = await SubjectFor(dto.SubjectEmail, cancellationToken);
+
+        if (!DisclosureMapper.TryToDomain(dto, subjectId, requesterUserId, RequestChannel.Api, out var request))
         {
-            return BadRequest($"Unrecognised purpose '{dto.Purpose}'.");
+            ModelState.AddModelError(nameof(dto.Purpose), $"Unrecognised purpose '{dto.Purpose}'.");
+
+            // Without an explicit status this is not a 400.
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
         }
 
         var result = await _evaluator.EvaluateAsync(request, cancellationToken);
 
-        // A refusal is a completed evaluation, not a failed request: it carries a reason and
-        // an audit record, so it is returned as 200 with an explicit outcome.
         return Ok(DisclosureMapper.ToContract(result));
+    }
+
+    // An unknown address resolves to Guid.Empty and is refused as NoMatchingNorm, the same as a
+    // subject with no matching rule.
+    private async Task<Guid> SubjectFor(string email, CancellationToken cancellationToken)
+    {
+        var userId = await _users.FindUserIdByEmailAsync(email, cancellationToken);
+
+        if (userId is null)
+        {
+            return Guid.Empty;
+        }
+
+        var subject = await _subjects.FindByUserIdAsync(userId, cancellationToken);
+
+        return subject?.Id ?? Guid.Empty;
     }
 }

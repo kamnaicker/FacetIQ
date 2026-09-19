@@ -1,43 +1,38 @@
 using System.ComponentModel.DataAnnotations;
+using FacetIQ.Contracts.Validation;
 
 namespace FacetIQ.Contracts.Norms;
 
 /// <summary>
-/// A rule the subject is authoring. The subject is deliberately absent: it comes from the
-/// authenticated principal, so a caller cannot write rules into someone else's profile.
-///
-/// Relationship and purpose are both optional, and omitting one is meaningful rather than
-/// incomplete -- an unbound condition is a wildcard admitting any request, and a norm binding
-/// neither applies to everything. Lengths mirror the columns in NormConfiguration, so oversized
-/// input is refused at the edge rather than surviving as far as the database.
+/// The subject comes from the token. An omitted condition is a wildcard. Lengths mirror
+/// NormConfiguration.
 /// </summary>
 public sealed record CreateNormRequest
 {
-    /// <summary>The claim this norm selects. Selection precedes any transformation.</summary>
     public required Guid AttributeId { get; init; }
 
     [StringLength(64)]
+    [PlainText]
     public string? Relationship { get; init; }
 
     [StringLength(32)]
     public string? Purpose { get; init; }
 
-    /// <summary>
-    /// Omitted, or None, releases the selected claim unchanged. The action is derived from this
-    /// and from the deny reason rather than being stated separately, so the two cannot contradict
-    /// each other.
-    /// </summary>
+    /// <summary>Omitted or None releases the claim unchanged.</summary>
     [StringLength(32)]
     public string? Transform { get; init; }
 
+    /// <summary>Generalise: the age threshold, default 18.</summary>
     [StringLength(64)]
+    [PlainText]
     public string? TransformParameter { get; init; }
 
-    /// <summary>Set to author an explicit refusal in place of a disclosure.</summary>
+    /// <summary>Set to RefusedByRule to make this a refusal. No other value is accepted.</summary>
     [StringLength(32)]
     public string? DenyReason { get; init; }
 
     [Required]
     [StringLength(256)]
+    [PlainText]
     public required string JustifyingPrinciple { get; init; }
 }

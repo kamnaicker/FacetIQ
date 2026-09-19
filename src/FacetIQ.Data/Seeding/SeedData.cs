@@ -4,11 +4,8 @@ using FacetIQ.Domain.Enums;
 namespace FacetIQ.Data.Seeding;
 
 /// <summary>
-/// A worked example carried into the schema so the engine has something to decide about.
-///
-/// Amara holds three names. None is derived from another and none is canonical: the legal
-/// name cannot be computed from the social one by any rule. Selecting between them is the
-/// system's primary act, and the transforms below only shape whichever claim was selected.
+/// Worked example seeded through migrations. Amara's three names are independent claims, so a
+/// norm selects one rather than transforming another.
 /// </summary>
 public static class SeedData
 {
@@ -22,20 +19,14 @@ public static class SeedData
     public static readonly Guid AcceptedColleague = new("0a5f4d8e-0000-4000-8000-000000000030");
     public static readonly Guid PendingColleague = new("0a5f4d8e-0000-4000-8000-000000000031");
 
-    /// <summary>
-    /// The people the rows below are about, named by user identifier. These are also the ids of
-    /// the accounts <see cref="DevelopmentUserSeeder"/> creates, so the worked example can be
-    /// signed into rather than only read about. Constants because two places must agree on them
-    /// exactly, and a typo would present as a requester who mysteriously holds no standing.
-    /// </summary>
+    // Must match the ids DevelopmentUserSeeder creates.
     public const string AmaraUserId = "seed-amara";
 
     public const string AcceptedColleagueUserId = "seed-colleague-accepted";
 
     public const string PendingColleagueUserId = "seed-colleague-pending";
 
-    // Fixed so the seed is deterministic: a clock read here would rewrite the migration on
-    // every scaffold.
+    // Fixed, or every migration scaffold would rewrite the seed.
     private static readonly DateTimeOffset SeededAt = new(2026, 8, 1, 9, 0, 0, TimeSpan.Zero);
 
     public static Subject[] Subjects { get; } =
@@ -77,17 +68,12 @@ public static class SeedData
             Value = "1994-03-11",
             Label = "legal",
 
-            // Given for a social context. The subject still wrote a norm releasing the exact
-            // date for regulatory requests, and the collection purpose is what overrides it.
+            // Overrides the regulatory norm below, which would otherwise release the exact date.
             CollectedFor = Purpose.Social
         }
     ];
 
-    /// <summary>
-    /// Two requesters differing in one thing only. Both hold a colleague standing towards Amara;
-    /// one was accepted and one never was. Nothing else separates them, so any difference in what
-    /// they receive is attributable to the acceptance alone.
-    /// </summary>
+    /// <summary>Two colleague standings that differ only in whether they were accepted.</summary>
     public static Standing[] Standings { get; } =
     [
         new Standing
@@ -108,9 +94,6 @@ public static class SeedData
             RequesterUserId = PendingColleagueUserId,
             Value = "colleague",
             IssuerKind = IssuerKind.Subject,
-
-            // Amara asserting a colleague relationship about someone else. It stays inert until
-            // they accept, which is what stops her placing a person in a context unilaterally.
             Issuer = AmaraUserId,
             IssuedAt = SeededAt,
             AcceptedAt = null

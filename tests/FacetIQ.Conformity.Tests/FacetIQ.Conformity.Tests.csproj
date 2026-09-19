@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\FacetIQ.API\FacetIQ.API.csproj" />
     <ProjectReference Include="..\..\src\FacetIQ.Services\FacetIQ.Services.csproj" />
     <ProjectReference Include="..\..\src\FacetIQ.Domain\FacetIQ.Domain.csproj" />
     <ProjectReference Include="..\..\src\FacetIQ.Contracts\FacetIQ.Contracts.csproj" />

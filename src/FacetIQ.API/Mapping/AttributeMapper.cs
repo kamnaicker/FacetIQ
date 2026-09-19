@@ -6,14 +6,7 @@ namespace FacetIQ.API.Mapping;
 
 public static class AttributeMapper
 {
-    /// <summary>
-    /// Builds the domain claim from the contract and the authenticated subject. The collection
-    /// purpose is parsed rather than model-bound so an unrecognised value is refused at the
-    /// boundary instead of arriving as a default, which is how the other two mappers treat theirs.
-    ///
-    /// An absent purpose is a claim collected under no stated limit, which is a different thing
-    /// from an unrecognised one and succeeds.
-    /// </summary>
+    /// <summary>False when CollectedFor is present but not a recognised purpose.</summary>
     public static bool TryToDomain(
         CreateAttributeRequest dto,
         Guid subjectId,
@@ -21,16 +14,9 @@ public static class AttributeMapper
     {
         attribute = null!;
 
-        Purpose? collectedFor = null;
-
-        if (dto.CollectedFor is not null)
+        if (!EnumValue.TryParseOptional<Purpose>(dto.CollectedFor, out var collectedFor))
         {
-            if (!Enum.TryParse<Purpose>(dto.CollectedFor, ignoreCase: true, out var parsed))
-            {
-                return false;
-            }
-
-            collectedFor = parsed;
+            return false;
         }
 
         attribute = new SubjectAttribute

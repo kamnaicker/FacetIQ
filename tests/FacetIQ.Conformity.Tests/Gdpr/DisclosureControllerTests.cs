@@ -6,17 +6,13 @@ using FacetIQ.Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace FacetIQ.API.Tests.Controllers;
+namespace FacetIQ.Conformity.Tests.Gdpr;
 
 public class DisclosureControllerTests
 {
-    /// <summary>
-    /// O3: an unauthenticated request is refused before evaluation begins. The status alone
-    /// would not show that -- a caller cannot tell a refusal from a decision to refuse -- so
-    /// the assertion that matters is the one counting calls into the engine.
-    /// </summary>
+    /// <summary>O3: refused before evaluation. The call count, not the status, proves it.</summary>
     [Fact]
-    public async Task UnauthenticatedRequest_IsRefusedWithoutReachingTheEngine()
+    public async Task UnauthenticatedRequest_NeverReachesEvaluation()
     {
         var evaluator = new UnreachableEvaluator();
         var controller = ControllerFor(evaluator, new ClaimsPrincipal(new ClaimsIdentity()));
@@ -27,10 +23,7 @@ public class DisclosureControllerTests
         Assert.Equal(0, evaluator.Calls);
     }
 
-    /// <summary>
-    /// The control for the test above: the same caller carrying an identifier does reach the
-    /// engine. Without this, a controller that never evaluated at all would pass O3.
-    /// </summary>
+    /// <summary>O3: the control for the test above.</summary>
     [Fact]
     public async Task AuthenticatedRequest_ReachesTheEngine()
     {
@@ -44,26 +37,25 @@ public class DisclosureControllerTests
         Assert.Equal(1, evaluator.Calls);
     }
 
-    private static DisclosureController ControllerFor(IDisclosureEvaluator evaluator, ClaimsPrincipal caller) =>
-        new(evaluator)
+    private static DisclosureController ControllerFor(IDisclosureEvaluator evaluator, ClaimsPrincipal caller)
+    {
+        return new DisclosureController(evaluator, new InMemorySubjectRepository(), new InMemoryUserDirectory())
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { User = caller }
             }
         };
+    }
 
     private static DisclosureRequestDto Asking(string attributeKey) => new()
     {
-        SubjectId = Guid.NewGuid(),
+        SubjectEmail = "someone@example.test",
         AttributeKey = attributeKey,
         Purpose = "Social"
     };
 
-    /// <summary>
-    /// Throws rather than returning, so an unnoticed call fails the test loudly. The counter
-    /// is what the assertion reads, and it stays at zero if the guard holds.
-    /// </summary>
+    /// <summary>Counts calls, then throws so an unexpected call cannot pass silently.</summary>
     private sealed class UnreachableEvaluator : IDisclosureEvaluator
     {
         public int Calls { get; private set; }

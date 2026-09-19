@@ -2,11 +2,14 @@ using FacetIQ.Domain.Entities;
 
 namespace FacetIQ.Domain.Abstractions.Repositories;
 
-/// <summary>
-/// Append-only. There is deliberately no update or delete: an audit record is a statement
-/// about something that happened, and it outlives the subject it describes.
-/// </summary>
+/// <summary>Append-only: no update or delete.</summary>
 public interface IAuditRecordRepository
 {
     Task AddAsync(AuditRecord record, CancellationToken cancellationToken);
+
+    /// <summary>Newest first.</summary>
+    Task<IReadOnlyList<AuditRecord>> ListForSubjectAsync(
+        Guid subjectId,
+        int limit,
+        CancellationToken cancellationToken);
 }

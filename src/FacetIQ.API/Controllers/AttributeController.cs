@@ -12,18 +12,19 @@ public class AttributeController : ControllerBase
 {
     private readonly ISubjectRepository _subjects;
     private readonly IAttributeRepository _attributes;
+    private readonly INormRepository _norms;
 
-    public AttributeController(ISubjectRepository subjects, IAttributeRepository attributes)
+    public AttributeController(
+        ISubjectRepository subjects,
+        IAttributeRepository attributes,
+        INormRepository norms)
     {
         _subjects = subjects;
         _attributes = attributes;
+        _norms = norms;
     }
 
-    /// <summary>
-    /// The caller's own claims. There is no route to anyone else's: a claim is read through the
-    /// disclosure endpoint, where a norm decides what a requester receives. This route is the
-    /// subject reading their own profile, so it returns the set rather than a selection from it.
-    /// </summary>
+    /// <summary>The caller's own claims. Others read claims through /disclosure.</summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<AttributeResponse>>> Get(
         CancellationToken cancellationToken)
@@ -47,14 +48,7 @@ public class AttributeController : ControllerBase
         return Ok(claims.Select(AttributeMapper.ToContract).ToList());
     }
 
-    /// <summary>
-    /// Adds a claim. The subject comes from the token and never from the route or the body, so a
-    /// caller can only ever write into their own profile.
-    ///
-    /// Nothing is checked against the claims already held. Two identical names are permitted, and
-    /// so is a name that contradicts another: the system stores what a person says about
-    /// themselves and does not adjudicate between their accounts of it.
-    /// </summary>
+    /// <summary>Adds a claim. Differing values under one key are allowed; an exact duplicate is not.</summary>
     [HttpPost]
     public async Task<ActionResult<AttributeResponse>> Post(
         CreateAttributeRequest dto,
@@ -76,11 +70,71 @@ public class AttributeController : ControllerBase
 
         if (!AttributeMapper.TryToDomain(dto, subject.Id, out var attribute))
         {
-            return BadRequest($"Unrecognised purpose '{dto.CollectedFor}'.");
+            ModelState.AddModelError(
+                nameof(dto.CollectedFor),
+                $"Unrecognised purpose '{dto.CollectedFor}'.");
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
+        }
+
+        // Case-sensitive: a different capitalisation is a different name.
+        var held = await _attributes.ListByKeyAsync(subject.Id, attribute.Key, cancellationToken);
+
+        if (held.Any(claim => claim.Value == attribute.Value))
+        {
+            ModelState.AddModelError(nameof(dto.Value), "You already hold this.");
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
         }
 
         await _attributes.AddAsync(attribute, cancellationToken);
 
         return CreatedAtAction(nameof(Get), AttributeMapper.ToContract(attribute));
+    }
+
+    /// <summary>Deletes a claim. Returns 409 listing the rules in force that still select it.</summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var subject = await _subjects.FindByUserIdAsync(userId, cancellationToken);
+
+        if (subject is null)
+        {
+            return Forbid();
+        }
+
+        var claim = await _attributes.FindAsync(id, cancellationToken);
+
+        if (claim is null || claim.SubjectId != subject.Id)
+        {
+            return NotFound();
+        }
+
+        var releasing = (await _norms.ListGoverningAsync(subject.Id, cancellationToken))
+            .Where(norm => norm.AttributeId == id)
+            .ToList();
+
+        if (releasing.Count > 0)
+        {
+            return Conflict(new ClaimInUseResponse
+            {
+                Rules = releasing.Select(NormMapper.ToContract).ToList(),
+            });
+        }
+
+        await _attributes.DeleteAsync(id, cancellationToken);
+
+        return NoContent();
     }
 }

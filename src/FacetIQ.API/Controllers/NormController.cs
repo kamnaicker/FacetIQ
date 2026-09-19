@@ -3,6 +3,7 @@ using FacetIQ.API.Mapping;
 using FacetIQ.Contracts.Norms;
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Abstractions.Services;
+using FacetIQ.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Controllers;
@@ -13,22 +14,58 @@ public class NormController : ControllerBase
 {
     private readonly ISubjectRepository _subjects;
     private readonly INormRepository _norms;
+    private readonly IAttributeRepository _attributes;
     private readonly IConflictDetector _detector;
+    private readonly ITransformService _transforms;
+    private readonly TimeProvider _clock;
 
     public NormController(
         ISubjectRepository subjects,
         INormRepository norms,
-        IConflictDetector detector)
+        IAttributeRepository attributes,
+        IConflictDetector detector,
+        ITransformService transforms,
+        TimeProvider clock)
     {
         _subjects = subjects;
         _norms = norms;
+        _attributes = attributes;
         _detector = detector;
+        _transforms = transforms;
+        _clock = clock;
     }
 
-    /// <summary>
-    /// The caller's own norms. There is no route to anyone else's: the subject is resolved from
-    /// the token, so the only collection a caller can read is the one they authored.
-    /// </summary>
+    /// <summary>Retires a rule. It stops governing at once; the row is kept until its claim is deleted.</summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var subject = await _subjects.FindByUserIdAsync(userId, cancellationToken);
+
+        if (subject is null)
+        {
+            return Forbid();
+        }
+
+        var governing = await _norms.ListGoverningAsync(subject.Id, cancellationToken);
+
+        if (governing.All(norm => norm.Id != id))
+        {
+            return NotFound();
+        }
+
+        await _norms.RetireAsync(id, _clock.GetUtcNow(), cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>The caller's rules in force.</summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<NormResponse>>> Get(CancellationToken cancellationToken)
     {
@@ -51,14 +88,7 @@ public class NormController : ControllerBase
         return Ok(norms.Select(NormMapper.ToContract).ToList());
     }
 
-    /// <summary>
-    /// Authors a norm. Conflicts are detected before anything is written, so a rule that could not
-    /// be told apart from one already in force is refused now rather than stored and discovered
-    /// months later, when a request ties and the subject no longer remembers what they wrote.
-    ///
-    /// The refusal is a 409 rather than a 400: the request is well formed and the subject is
-    /// entitled to make it. What it collides with is the state of their own profile.
-    /// </summary>
+    /// <summary>Authors a rule. Returns 409 with the collisions if it would tie with a rule in force.</summary>
     [HttpPost]
     public async Task<ActionResult<NormResponse>> Post(
         CreateNormRequest dto,
@@ -78,12 +108,43 @@ public class NormController : ControllerBase
             return Forbid();
         }
 
-        if (!NormMapper.TryToDomain(dto, subject.Id, out var norm))
+        if (!NormMapper.TryToDomain(dto, subject.Id, out var norm, out var invalidMember))
         {
-            return BadRequest("Unrecognised purpose, transform or deny reason.");
+            var offending = invalidMember switch
+            {
+                nameof(dto.Purpose) => dto.Purpose,
+                nameof(dto.Transform) => dto.Transform,
+                _ => dto.DenyReason
+            };
+
+            return Invalid(invalidMember!, $"Not an accepted value: '{offending}'.");
         }
 
-        var existing = await _norms.ListGoverningAsync(subject.Id, cancellationToken);
+        // Missing and foreign share one message so neither is confirmed.
+        var claim = await _attributes.FindAsync(norm.AttributeId, cancellationToken);
+
+        if (claim is null || claim.SubjectId != subject.Id)
+        {
+            return Invalid(nameof(dto.AttributeId), "Not one of your claims.");
+        }
+
+        if (norm.Action != ActionType.Deny &&
+            !_transforms.TryApply(norm.Transform, norm.TransformParameter, claim.Value, out _))
+        {
+            return Invalid(nameof(dto.Transform), "Cannot be applied to this claim with that parameter.");
+        }
+
+        // The collection purpose overrides the rule at evaluation, so it could never release the claim.
+        if (norm.Action != ActionType.Deny &&
+            claim.CollectedFor is not null &&
+            norm.Purpose is not null &&
+            norm.Purpose != claim.CollectedFor)
+        {
+            return Invalid(nameof(dto.Purpose), $"This claim is limited to {claim.CollectedFor} use.");
+        }
+
+        // Only norms on the same key can govern the same request.
+        var existing = await _norms.GetGoverningNormsAsync(subject.Id, claim.Key, cancellationToken);
         var conflicts = _detector.Detect(norm, existing);
 
         if (conflicts.Count > 0)
@@ -94,5 +155,14 @@ public class NormController : ControllerBase
         await _norms.AddAsync(norm, cancellationToken);
 
         return CreatedAtAction(nameof(Get), NormMapper.ToContract(norm));
+    }
+
+    private ActionResult Invalid(string field, string message)
+    {
+        ModelState.AddModelError(field, message);
+
+        return ValidationProblem(
+            statusCode: StatusCodes.Status400BadRequest,
+            modelStateDictionary: ModelState);
     }
 }
