@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using FacetIQ.Contracts.Subjects;
 using FacetIQ.Domain.Abstractions.Repositories;
-using FacetIQ.Domain.Entities;
+using FacetIQ.Services.Subjects;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Controllers;
@@ -11,8 +11,13 @@ namespace FacetIQ.API.Controllers;
 public class SubjectController : ControllerBase
 {
     private readonly ISubjectRepository _subjects;
+    private readonly SubjectProvisioner _provisioner;
 
-    public SubjectController(ISubjectRepository subjects) => _subjects = subjects;
+    public SubjectController(ISubjectRepository subjects, SubjectProvisioner provisioner)
+    {
+        _subjects = subjects;
+        _provisioner = provisioner;
+    }
 
     /// <summary>The caller's own profile, or 404 when they hold none.</summary>
     [HttpGet]
@@ -30,7 +35,7 @@ public class SubjectController : ControllerBase
         return subject is null ? NotFound() : Ok(new SubjectResponse { Id = subject.Id });
     }
 
-    /// <summary>Creates the caller's profile, or returns the existing one. Safe to call on every sign-in.</summary>
+    /// <summary>Returns the caller's profile, creating it if confirmation did not. Safe to call on every sign-in.</summary>
     [HttpPost]
     public async Task<ActionResult<SubjectResponse>> Post(CancellationToken cancellationToken)
     {
@@ -41,16 +46,7 @@ public class SubjectController : ControllerBase
             return Unauthorized();
         }
 
-        var existing = await _subjects.FindByUserIdAsync(userId, cancellationToken);
-
-        if (existing is not null)
-        {
-            return Ok(new SubjectResponse { Id = existing.Id });
-        }
-
-        var subject = new Subject { Id = Guid.NewGuid(), UserId = userId };
-
-        await _subjects.AddAsync(subject, cancellationToken);
+        var subject = await _provisioner.EnsureAsync(userId, cancellationToken);
 
         return Ok(new SubjectResponse { Id = subject.Id });
     }

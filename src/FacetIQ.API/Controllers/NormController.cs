@@ -120,6 +120,12 @@ public class NormController : ControllerBase
             return Invalid(invalidMember!, $"Not an accepted value: '{offending}'.");
         }
 
+        // Only an age threshold reads a parameter; any other would be stored and never used.
+        if (norm.TransformParameter is not null && norm.Transform != TransformKind.Generalise)
+        {
+            return Invalid(nameof(dto.TransformParameter), "Only used when showing an age threshold.");
+        }
+
         // Missing and foreign share one message so neither is confirmed.
         var claim = await _attributes.FindAsync(norm.AttributeId, cancellationToken);
 

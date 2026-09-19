@@ -158,6 +158,17 @@ public class NormControllerTests
         Assert.Single(norms.Added);
     }
 
+    /// <summary>O5: a parameter no transform reads would be stored and never used.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Reformat")]
+    public async Task ParameterWithoutAnAgeThreshold_IsRefused(string? transform)
+    {
+        var request = Authoring(SocialName.Id) with { Transform = transform, TransformParameter = "18" };
+
+        await AssertRefused(request, nameof(CreateNormRequest.TransformParameter));
+    }
+
     [Fact]
     public async Task RemovedRule_StopsGoverning()
     {

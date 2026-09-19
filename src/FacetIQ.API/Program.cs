@@ -14,6 +14,12 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The largest field is 512 characters. Kestrel serves locally, IIS in-process on Azure.
+const long MaxRequestBody = 64 * 1024;
+
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxRequestBody);
+builder.Services.Configure<IISServerOptions>(options => options.MaxRequestBodySize = MaxRequestBody);
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // appsettings ships an empty value, so null alone is not enough.

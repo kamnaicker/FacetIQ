@@ -3,6 +3,7 @@ using FacetIQ.Services.Auditing;
 using FacetIQ.Services.Authoring;
 using FacetIQ.Services.Disclosure;
 using FacetIQ.Services.Matching;
+using FacetIQ.Services.Subjects;
 using FacetIQ.Services.Transformation;
 using FacetIQ.Services.Validation;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,7 @@ public static class ServiceLayerExtensions
 
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IDisclosureEvaluator, DisclosureEvaluator>();
+        services.AddScoped<SubjectProvisioner>();
 
         return services;
     }
