@@ -87,7 +87,15 @@ if (app.Environment.IsDevelopment())
     }).AllowAnonymous();
 
     // Accounts for the seeded user ids. Migrations are not applied here.
-    await app.Services.SeedDevelopmentUsersAsync();
+    var seedPassword = app.Configuration["Seed:Password"];
+
+    if (string.IsNullOrWhiteSpace(seedPassword))
+    {
+        throw new InvalidOperationException(
+            "Seed:Password is not configured. Set it with dotnet user-secrets.");
+    }
+
+    await app.Services.SeedDevelopmentUsersAsync(seedPassword);
 }
 
 // A redirect answers a preflight with a 307, which the browser will not follow.

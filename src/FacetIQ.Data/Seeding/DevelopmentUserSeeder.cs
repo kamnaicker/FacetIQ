@@ -10,8 +10,6 @@ namespace FacetIQ.Data.Seeding;
 /// </summary>
 public static class DevelopmentUserSeeder
 {
-    private const string Password = "Passw0rd!";
-
     private static readonly (string Id, string Email)[] Accounts =
     [
         (SeedData.AmaraUserId, "amara@example.test"),
@@ -19,7 +17,8 @@ public static class DevelopmentUserSeeder
         (SeedData.PendingColleagueUserId, "colleague.pending@example.test")
     ];
 
-    public static async Task SeedDevelopmentUsersAsync(this IServiceProvider services)
+    /// <summary>The password comes from user secrets, so no credential is kept in the repository.</summary>
+    public static async Task SeedDevelopmentUsersAsync(this IServiceProvider services, string password)
     {
         using var scope = services.CreateScope();
 
@@ -40,7 +39,7 @@ public static class DevelopmentUserSeeder
                 EmailConfirmed = true
             };
 
-            var result = await users.CreateAsync(user, Password);
+            var result = await users.CreateAsync(user, password);
 
             // CreateAsync reports failure instead of throwing.
             if (!result.Succeeded)
