@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using FacetIQ.API.Email;
+using FacetIQ.API.Identity;
 using FacetIQ.API.OpenApi;
 using FacetIQ.API.RateLimiting;
 using FacetIQ.Data.Context;
@@ -39,6 +40,7 @@ builder.Services
         options.User.RequireUniqueEmail = true;
     })
     .AddRoles<IdentityRole>()
+    .AddUserManager<AppUserManager>()
     .AddEntityFrameworkStores<AuthDbContext>();
 
 builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
