@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FacetIQ.Contracts.Validation;
 
 namespace FacetIQ.Contracts.Disclosure;
 
@@ -16,6 +17,7 @@ public sealed record DisclosureRequestDto
 
     [Required]
     [StringLength(64)]
+    [RegularExpression(ClaimKey.Pattern, ErrorMessage = ClaimKey.Message)]
     public required string AttributeKey { get; init; }
 
     [Required]

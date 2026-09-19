@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FacetIQ.Contracts.Validation;
 
 namespace FacetIQ.Contracts.Norms;
 
@@ -11,6 +12,7 @@ public sealed record CreateNormRequest
     public required Guid AttributeId { get; init; }
 
     [StringLength(64)]
+    [PlainText]
     public string? Relationship { get; init; }
 
     [StringLength(32)]
@@ -22,6 +24,7 @@ public sealed record CreateNormRequest
 
     /// <summary>Generalise: the age threshold, default 18.</summary>
     [StringLength(64)]
+    [PlainText]
     public string? TransformParameter { get; init; }
 
     /// <summary>Set to RefusedByRule to make this a refusal. No other value is accepted.</summary>
@@ -30,5 +33,6 @@ public sealed record CreateNormRequest
 
     [Required]
     [StringLength(256)]
+    [PlainText]
     public required string JustifyingPrinciple { get; init; }
 }

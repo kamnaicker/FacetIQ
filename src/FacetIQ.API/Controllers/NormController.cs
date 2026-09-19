@@ -134,6 +134,15 @@ public class NormController : ControllerBase
             return Invalid(nameof(dto.Transform), "Cannot be applied to this claim with that parameter.");
         }
 
+        // The collection purpose overrides the rule at evaluation, so it could never release the claim.
+        if (norm.Action != ActionType.Deny &&
+            claim.CollectedFor is not null &&
+            norm.Purpose is not null &&
+            norm.Purpose != claim.CollectedFor)
+        {
+            return Invalid(nameof(dto.Purpose), $"This claim is limited to {claim.CollectedFor} use.");
+        }
+
         // Only norms on the same key can govern the same request.
         var existing = await _norms.GetGoverningNormsAsync(subject.Id, claim.Key, cancellationToken);
         var conflicts = _detector.Detect(norm, existing);

@@ -22,6 +22,7 @@ public class NormControllerTests
     private static readonly SubjectAttribute LegalName = Claim("0a5f4d8e-0000-4000-8000-000000000010", "name", "Amara Chidinma Nwosu");
     private static readonly SubjectAttribute SocialName = Claim("0a5f4d8e-0000-4000-8000-000000000012", "name", "Amara");
     private static readonly SubjectAttribute DateOfBirth = Claim("0a5f4d8e-0000-4000-8000-000000000013", "dateOfBirth", "1994-03-11");
+    private static readonly SubjectAttribute RegulatoryName = Claim("0a5f4d8e-0000-4000-8000-000000000014", "name", "Amara Chidinma Nwosu", collectedFor: Purpose.Regulatory);
     private static readonly SubjectAttribute StrangersName = Claim("0a5f4d8e-0000-4000-8000-000000000040", "name", "Someone Else", StrangerSubjectId);
 
     /// <summary>O8: a social request from a friend matches both at equal specificity.</summary>
@@ -134,6 +135,29 @@ public class NormControllerTests
         await AssertRefused(request, nameof(CreateNormRequest.Transform));
     }
 
+    /// <summary>O2: the collection purpose would refuse this rule on every request.</summary>
+    [Fact]
+    public async Task ReleaseForAPurposeTheClaimWasNotCollectedFor_IsRefused()
+    {
+        await AssertRefused(Authoring(RegulatoryName.Id, purpose: "Social"), nameof(CreateNormRequest.Purpose));
+    }
+
+    /// <summary>O2: the controls. Each can still act on some request, so each is kept.</summary>
+    [Theory]
+    [InlineData("Regulatory", null)]
+    [InlineData(null, null)]
+    [InlineData("Social", "RefusedByRule")]
+    public async Task RuleThatCanStillAct_OnAPurposeLimitedClaim_IsAccepted(string? purpose, string? denyReason)
+    {
+        var norms = new RecordingNormRepository();
+        var request = Authoring(RegulatoryName.Id, purpose: purpose) with { DenyReason = denyReason };
+
+        var response = await ControllerFor(norms, Owner()).Post(request, CancellationToken.None);
+
+        Assert.IsType<CreatedAtActionResult>(response.Result);
+        Assert.Single(norms.Added);
+    }
+
     [Fact]
     public async Task RemovedRule_StopsGoverning()
     {
@@ -187,7 +211,7 @@ public class NormControllerTests
         new(
             new StubSubjectRepository(),
             norms,
-            new InMemoryAttributeRepository(LegalName, SocialName, DateOfBirth, StrangersName),
+            new InMemoryAttributeRepository(LegalName, SocialName, DateOfBirth, RegulatoryName, StrangersName),
             new ConflictDetector(),
             new TransformService(TimeProvider.System),
             TimeProvider.System)
@@ -201,12 +225,18 @@ public class NormControllerTests
     private static ClaimsPrincipal Owner() =>
         new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, OwnerUserId)], "test"));
 
-    private static SubjectAttribute Claim(string id, string key, string value, Guid? subjectId = null) => new()
+    private static SubjectAttribute Claim(
+        string id,
+        string key,
+        string value,
+        Guid? subjectId = null,
+        Purpose? collectedFor = null) => new()
     {
         Id = new Guid(id),
         SubjectId = subjectId ?? SubjectId,
         Key = key,
-        Value = value
+        Value = value,
+        CollectedFor = collectedFor
     };
 
     private static Norm Existing(SubjectAttribute claim, Purpose? purpose = null, string? relationship = null) => new()

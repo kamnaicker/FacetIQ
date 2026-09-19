@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FacetIQ.Contracts.Validation;
 
 namespace FacetIQ.Contracts.Standings;
 
@@ -14,5 +15,6 @@ public sealed record IssueStandingRequest
     /// <summary>The relationship term norms match against, e.g. "colleague".</summary>
     [Required]
     [StringLength(64)]
+    [PlainText]
     public required string Value { get; init; }
 }

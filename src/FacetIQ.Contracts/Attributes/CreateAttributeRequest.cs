@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FacetIQ.Contracts.Validation;
 
 namespace FacetIQ.Contracts.Attributes;
 
@@ -7,15 +8,18 @@ public sealed record CreateAttributeRequest
 {
     [Required]
     [StringLength(64)]
+    [RegularExpression(ClaimKey.Pattern, ErrorMessage = ClaimKey.Message)]
     public required string Key { get; init; }
 
-    // Length only. No pattern, so hyphens, apostrophes, non-Latin scripts and single names are all valid.
+    // No pattern, so hyphens, apostrophes, non-Latin scripts and single names are all valid.
     [Required]
     [StringLength(512)]
+    [PlainText]
     public required string Value { get; init; }
 
     /// <summary>The subject's own description of when this claim applies. Not used in matching.</summary>
     [StringLength(64)]
+    [PlainText]
     public string? Label { get; init; }
 
     /// <summary>Purpose the claim was collected for. Null means no limit.</summary>
