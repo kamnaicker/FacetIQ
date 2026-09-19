@@ -12,6 +12,7 @@ public sealed record CreateAttributeRequest
     public required string Key { get; init; }
 
     // No pattern, so hyphens, apostrophes, non-Latin scripts and single names are all valid.
+    // Kinds with a fixed format are checked by IClaimValueValidator.
     [Required]
     [StringLength(512)]
     [PlainText]

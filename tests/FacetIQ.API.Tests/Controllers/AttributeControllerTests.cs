@@ -4,6 +4,7 @@ using FacetIQ.Contracts.Attributes;
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
 using FacetIQ.Domain.Enums;
+using FacetIQ.Services.Validation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -42,6 +43,22 @@ public class AttributeControllerTests
     }
 
     [Fact]
+    public async Task ValueThatDoesNotSuitItsKind_IsRefused_AndNotStored()
+    {
+        var claims = new Claims();
+
+        var response = await ControllerFor(claims, new Norms()).Post(
+            new CreateAttributeRequest { Key = "email", Value = "banana" },
+            CancellationToken.None);
+
+        var refusal = Assert.IsType<ObjectResult>(response.Result, exactMatch: false);
+        var problem = Assert.IsType<ValidationProblemDetails>(refusal.Value);
+        Assert.Equal(400, refusal.StatusCode);
+        Assert.True(problem.Errors.ContainsKey(nameof(CreateAttributeRequest.Value)));
+        Assert.Empty(claims.Rows);
+    }
+
+    [Fact]
     public async Task ClaimReleasedByALiveRule_CannotBeDeleted_AndTheRuleIsNamed()
     {
         var claim = Held("Sam");
@@ -70,7 +87,7 @@ public class AttributeControllerTests
     }
 
     private static AttributeController ControllerFor(Claims claims, Norms norms) =>
-        new(new Subjects(), claims, norms)
+        new(new Subjects(), claims, norms, new ClaimValueValidator(TimeProvider.System))
         {
             ControllerContext = new ControllerContext
             {

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FacetIQ.API.Mapping;
 using FacetIQ.Contracts.Attributes;
 using FacetIQ.Domain.Abstractions.Repositories;
+using FacetIQ.Domain.Abstractions.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Controllers;
@@ -13,15 +14,18 @@ public class AttributeController : ControllerBase
     private readonly ISubjectRepository _subjects;
     private readonly IAttributeRepository _attributes;
     private readonly INormRepository _norms;
+    private readonly IClaimValueValidator _values;
 
     public AttributeController(
         ISubjectRepository subjects,
         IAttributeRepository attributes,
-        INormRepository norms)
+        INormRepository norms,
+        IClaimValueValidator values)
     {
         _subjects = subjects;
         _attributes = attributes;
         _norms = norms;
+        _values = values;
     }
 
     /// <summary>The caller's own claims. Others read claims through /disclosure.</summary>
@@ -73,6 +77,15 @@ public class AttributeController : ControllerBase
             ModelState.AddModelError(
                 nameof(dto.CollectedFor),
                 $"Unrecognised purpose '{dto.CollectedFor}'.");
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
+        }
+
+        if (!_values.IsValid(attribute.Key, attribute.Value, out var problem))
+        {
+            ModelState.AddModelError(nameof(dto.Value), problem);
 
             return ValidationProblem(
                 statusCode: StatusCodes.Status400BadRequest,
