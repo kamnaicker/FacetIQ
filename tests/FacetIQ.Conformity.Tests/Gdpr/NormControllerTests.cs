@@ -158,6 +158,47 @@ public class NormControllerTests
         Assert.Single(norms.Added);
     }
 
+    /// <summary>O5: a refusal never shows the claim, so a display on one is never read.</summary>
+    [Theory]
+    [InlineData("Reformat", null)]
+    [InlineData("Generalise", "18")]
+    public async Task RefusalCarryingADisplay_IsRefused(string transform, string? parameter)
+    {
+        var request = Authoring(SocialName.Id) with
+        {
+            DenyReason = "RefusedByRule",
+            Transform = transform,
+            TransformParameter = parameter,
+        };
+
+        await AssertRefused(request, nameof(CreateNormRequest.Transform));
+    }
+
+    /// <summary>Matching compares the stored term, so stray spaces would stop a rule ever applying.</summary>
+    [Fact]
+    public async Task RelationshipWithStraySpaces_IsStoredTrimmed()
+    {
+        var norms = new RecordingNormRepository();
+
+        var response = await ControllerFor(norms, Owner()).Post(
+            Authoring(SocialName.Id, relationship: "  colleague  "),
+            CancellationToken.None);
+
+        Assert.IsType<CreatedAtActionResult>(response.Result);
+        Assert.Equal("colleague", Assert.Single(norms.Added).Relationship);
+    }
+
+    /// <summary>O5: a parameter no transform reads would be stored and never used.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Reformat")]
+    public async Task ParameterWithoutAnAgeThreshold_IsRefused(string? transform)
+    {
+        var request = Authoring(SocialName.Id) with { Transform = transform, TransformParameter = "18" };
+
+        await AssertRefused(request, nameof(CreateNormRequest.TransformParameter));
+    }
+
     [Fact]
     public async Task RemovedRule_StopsGoverning()
     {
@@ -274,7 +315,7 @@ public class NormControllerTests
         public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
             Task.FromResult<Subject?>(userId == OwnerUserId ? Owned : null);
 
-        public Task AddAsync(Subject subject, CancellationToken cancellationToken) =>
+        public Task<Subject> AddOrGetAsync(Subject subject, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 

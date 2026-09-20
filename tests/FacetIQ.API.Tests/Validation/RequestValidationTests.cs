@@ -10,9 +10,9 @@ namespace FacetIQ.API.Tests.Validation;
 public class RequestValidationTests
 {
     [Theory]
-    [InlineData("Amara‮anidihc")]
-    [InlineData("colle​ague")]
-    [InlineData("﻿Amara")]
+    [InlineData("Amara\u202Eanidihc")]
+    [InlineData("colle\u200Bague")]
+    [InlineData("\uFEFFAmara")]
     [InlineData("two\nlines")]
     [InlineData("tab\there")]
     public void HiddenOrControlCharacters_AreRefused(string text)
@@ -24,8 +24,8 @@ public class RequestValidationTests
     [InlineData("Amara Chidinma Nwosu")]
     [InlineData("O'Brien-Smith")]
     [InlineData("阿玛拉")]
-    [InlineData("می‌خواهم")]
-    [InlineData("\U0001F469‍⚕️")]
+    [InlineData("می\u200Cخواهم")]
+    [InlineData("\U0001F469\u200D⚕\uFE0F")]
     public void ScriptsPunctuationAndJoiners_AreAccepted(string text)
     {
         Assert.True(new PlainTextAttribute().IsValid(text));
@@ -49,7 +49,7 @@ public class RequestValidationTests
 
     public static TheoryData<object, string> RequestsWithOneBadField()
     {
-        const string hidden = "colle​ague";
+        const string hidden = "colle\u200Bague";
 
         return new TheoryData<object, string>
         {

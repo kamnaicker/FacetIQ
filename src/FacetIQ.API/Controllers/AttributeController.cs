@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FacetIQ.API.Mapping;
 using FacetIQ.Contracts.Attributes;
 using FacetIQ.Domain.Abstractions.Repositories;
+using FacetIQ.Domain.Abstractions.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacetIQ.API.Controllers;
@@ -13,15 +14,18 @@ public class AttributeController : ControllerBase
     private readonly ISubjectRepository _subjects;
     private readonly IAttributeRepository _attributes;
     private readonly INormRepository _norms;
+    private readonly IClaimValueValidator _values;
 
     public AttributeController(
         ISubjectRepository subjects,
         IAttributeRepository attributes,
-        INormRepository norms)
+        INormRepository norms,
+        IClaimValueValidator values)
     {
         _subjects = subjects;
         _attributes = attributes;
         _norms = norms;
+        _values = values;
     }
 
     /// <summary>The caller's own claims. Others read claims through /disclosure.</summary>
@@ -79,12 +83,23 @@ public class AttributeController : ControllerBase
                 modelStateDictionary: ModelState);
         }
 
-        // Case-sensitive: a different capitalisation is a different name.
+        if (!_values.IsValid(attribute.Key, attribute.Value, out var problem))
+        {
+            ModelState.AddModelError(nameof(dto.Value), problem);
+
+            return ValidationProblem(
+                statusCode: StatusCodes.Status400BadRequest,
+                modelStateDictionary: ModelState);
+        }
+
+        // Case-sensitive: a different capitalisation is a different name. The collection purpose
+        // counts too: one value held under two ceilings is two claims, and a rule binds to one.
+        // The label does not, since it is a note to self and the engine cannot tell two apart by it.
         var held = await _attributes.ListByKeyAsync(subject.Id, attribute.Key, cancellationToken);
 
-        if (held.Any(claim => claim.Value == attribute.Value))
+        if (held.Any(claim => claim.Value == attribute.Value && claim.CollectedFor == attribute.CollectedFor))
         {
-            ModelState.AddModelError(nameof(dto.Value), "You already hold this.");
+            ModelState.AddModelError(nameof(dto.Value), "You already hold this for that reason.");
 
             return ValidationProblem(
                 statusCode: StatusCodes.Status400BadRequest,

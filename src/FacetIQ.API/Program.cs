@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using FacetIQ.API.Email;
+using FacetIQ.API.Identity;
 using FacetIQ.API.OpenApi;
 using FacetIQ.API.RateLimiting;
 using FacetIQ.Data.Context;
@@ -13,6 +14,12 @@ using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The largest field is 512 characters. Kestrel serves locally, IIS in-process on Azure.
+const long MaxRequestBody = 64 * 1024;
+
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxRequestBody);
+builder.Services.Configure<IISServerOptions>(options => options.MaxRequestBodySize = MaxRequestBody);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -33,6 +40,7 @@ builder.Services
         options.User.RequireUniqueEmail = true;
     })
     .AddRoles<IdentityRole>()
+    .AddUserManager<AppUserManager>()
     .AddEntityFrameworkStores<AuthDbContext>();
 
 builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();

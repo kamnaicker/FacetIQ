@@ -107,12 +107,15 @@ public class StandingController : ControllerBase
                 modelStateDictionary: ModelState);
         }
 
+        // Trimmed because matching compares the stored term, and stray spaces never match.
+        var value = dto.Value.Trim();
+
         // Case-insensitive, as matching is.
         var issued = await _standings.ListIssuedBySubjectAsync(subject.Id, cancellationToken);
 
         if (issued.Any(existing =>
                 existing.RequesterUserId == holderId &&
-                string.Equals(existing.Value, dto.Value, StringComparison.OrdinalIgnoreCase)))
+                string.Equals(existing.Value, value, StringComparison.OrdinalIgnoreCase)))
         {
             ModelState.AddModelError(nameof(dto.Value), "You have already added them as that.");
 
@@ -126,7 +129,7 @@ public class StandingController : ControllerBase
             Id = Guid.NewGuid(),
             SubjectId = subject.Id,
             RequesterUserId = holderId,
-            Value = dto.Value,
+            Value = value,
             IssuerKind = IssuerKind.Subject,
             Issuer = userId,
             IssuedAt = _clock.GetUtcNow(),
