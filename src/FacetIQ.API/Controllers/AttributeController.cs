@@ -92,12 +92,14 @@ public class AttributeController : ControllerBase
                 modelStateDictionary: ModelState);
         }
 
-        // Case-sensitive: a different capitalisation is a different name.
+        // Case-sensitive: a different capitalisation is a different name. The collection purpose
+        // counts too: one value held under two ceilings is two claims, and a rule binds to one.
+        // The label does not, since it is a note to self and the engine cannot tell two apart by it.
         var held = await _attributes.ListByKeyAsync(subject.Id, attribute.Key, cancellationToken);
 
-        if (held.Any(claim => claim.Value == attribute.Value))
+        if (held.Any(claim => claim.Value == attribute.Value && claim.CollectedFor == attribute.CollectedFor))
         {
-            ModelState.AddModelError(nameof(dto.Value), "You already hold this.");
+            ModelState.AddModelError(nameof(dto.Value), "You already hold this for that reason.");
 
             return ValidationProblem(
                 statusCode: StatusCodes.Status400BadRequest,

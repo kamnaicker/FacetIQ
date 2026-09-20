@@ -30,6 +30,33 @@ public class AttributeControllerTests
         Assert.Single(claims.Rows);
     }
 
+    /// <summary>One value can be held twice under different ceilings; a rule binds to one of them.</summary>
+    [Fact]
+    public async Task SameValueCollectedForAnotherPurpose_IsADifferentClaim()
+    {
+        var claims = new Claims(Held("Sam", Purpose.Regulatory));
+
+        var response = await ControllerFor(claims, new Norms())
+            .Post(Adding("Sam", "Clinical"), CancellationToken.None);
+
+        Assert.IsType<CreatedAtActionResult>(response.Result);
+        Assert.Equal(2, claims.Rows.Count);
+    }
+
+    /// <summary>The control: the same value under the same ceiling is still one claim.</summary>
+    [Fact]
+    public async Task SameValueCollectedForTheSamePurpose_IsRefused()
+    {
+        var claims = new Claims(Held("Sam", Purpose.Clinical));
+
+        var response = await ControllerFor(claims, new Norms())
+            .Post(Adding("Sam", "Clinical"), CancellationToken.None);
+
+        var refusal = Assert.IsType<ObjectResult>(response.Result, exactMatch: false);
+        Assert.Equal(400, refusal.StatusCode);
+        Assert.Single(claims.Rows);
+    }
+
     /// <summary>Names are not case-normalised.</summary>
     [Fact]
     public async Task DifferentCapitalisation_IsADifferentClaim()
@@ -99,15 +126,21 @@ public class AttributeControllerTests
             },
         };
 
-    private static SubjectAttribute Held(string value) => new()
+    private static SubjectAttribute Held(string value, Purpose? collectedFor = null) => new()
     {
         Id = Guid.NewGuid(),
         SubjectId = SubjectId,
         Key = "name",
         Value = value,
+        CollectedFor = collectedFor,
     };
 
-    private static CreateAttributeRequest Adding(string value) => new() { Key = "name", Value = value };
+    private static CreateAttributeRequest Adding(string value, string? collectedFor = null) => new()
+    {
+        Key = "name",
+        Value = value,
+        CollectedFor = collectedFor,
+    };
 
     private static Norm RuleFor(SubjectAttribute claim) => new()
     {
