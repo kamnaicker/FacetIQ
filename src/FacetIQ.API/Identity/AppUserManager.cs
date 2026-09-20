@@ -32,7 +32,16 @@ public sealed class AppUserManager : UserManager<AppUser>
 
         if (result.Succeeded)
         {
-            await _provisioner.EnsureAsync(user.Id, CancellationToken.None);
+            try
+            {
+                await _provisioner.EnsureAsync(user.Id, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                // The account is confirmed either way. POST /subject creates the profile on sign in,
+                // so a failure here must not turn a working link into an error page.
+                Logger.LogWarning(exception, "Could not create the profile for a confirmed account.");
+            }
         }
 
         return result;

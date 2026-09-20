@@ -43,7 +43,8 @@ public static class NormMapper
             Version = 1,
             SubjectId = subjectId,
             AttributeId = dto.AttributeId,
-            Relationship = dto.Relationship,
+            // Trimmed because matching compares the stored term, and an unbound condition is null.
+            Relationship = Trimmed(dto.Relationship),
             Purpose = purpose,
             Action = DeriveAction(transform, denyReason),
             Transform = transform ?? TransformKind.None,
@@ -53,6 +54,13 @@ public static class NormMapper
         };
 
         return true;
+    }
+
+    private static string? Trimmed(string? value)
+    {
+        var trimmed = value?.Trim();
+
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 
     public static NormResponse ToContract(Norm norm) => new()

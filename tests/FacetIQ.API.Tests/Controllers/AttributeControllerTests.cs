@@ -131,7 +131,7 @@ public class AttributeControllerTests
         public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
             Task.FromResult<Subject?>(userId == OwnerUserId ? Owner : null);
 
-        public Task AddAsync(Subject subject, CancellationToken cancellationToken) =>
+        public Task<Subject> AddOrGetAsync(Subject subject, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 

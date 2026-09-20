@@ -43,6 +43,19 @@ public class StandingControllerTests
         Assert.Empty(await standings.GetAcceptedAsync(SamSubjectId, RiyaUserId, CancellationToken.None));
     }
 
+    /// <summary>Matching compares the stored term, so stray spaces would stop a rule ever applying.</summary>
+    [Fact]
+    public async Task ValueWithStraySpaces_IsStoredTrimmed()
+    {
+        var standings = new InMemoryStandings();
+
+        var response = await ControllerFor(SamUserId, standings)
+            .Post(Issue(RiyaEmail) with { Value = "  colleague  " }, CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(response.Result);
+        Assert.Equal("colleague", Assert.Single(standings.Rows).Value);
+    }
+
     /// <summary>Answered as 404, the same as a standing that does not exist.</summary>
     [Fact]
     public async Task IssuerCannotAcceptTheirOwnStanding()
@@ -318,7 +331,7 @@ public class StandingControllerTests
         public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
             Task.FromResult<Subject?>(userId == SamUserId ? Sam : null);
 
-        public Task AddAsync(Subject subject, CancellationToken cancellationToken) =>
+        public Task<Subject> AddOrGetAsync(Subject subject, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 

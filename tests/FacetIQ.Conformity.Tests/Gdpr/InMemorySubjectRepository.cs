@@ -16,10 +16,10 @@ internal sealed class InMemorySubjectRepository : ISubjectRepository
     public Task<Subject?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         Task.FromResult(_subject?.UserId == userId ? _subject : null);
 
-    public Task AddAsync(Subject subject, CancellationToken cancellationToken)
+    public Task<Subject> AddOrGetAsync(Subject subject, CancellationToken cancellationToken)
     {
         _subject = subject;
 
-        return Task.CompletedTask;
+        return Task.FromResult(subject);
     }
 }

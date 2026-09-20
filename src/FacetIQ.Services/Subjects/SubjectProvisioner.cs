@@ -24,8 +24,7 @@ public sealed class SubjectProvisioner
 
         var subject = new Subject { Id = Guid.NewGuid(), UserId = userId };
 
-        await _subjects.AddAsync(subject, cancellationToken);
-
-        return subject;
+        // Two confirmations can arrive at once, so the store decides which row is kept.
+        return await _subjects.AddOrGetAsync(subject, cancellationToken);
     }
 }

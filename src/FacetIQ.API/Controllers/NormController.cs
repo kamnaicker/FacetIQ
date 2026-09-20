@@ -120,6 +120,12 @@ public class NormController : ControllerBase
             return Invalid(invalidMember!, $"Not an accepted value: '{offending}'.");
         }
 
+        // A refusal never shows the claim, so a display on one would be stored and never read.
+        if (norm.Action == ActionType.Deny && norm.Transform != TransformKind.None)
+        {
+            return Invalid(nameof(dto.Transform), "A refusal shares nothing, so it takes no display.");
+        }
+
         // Only an age threshold reads a parameter; any other would be stored and never used.
         if (norm.TransformParameter is not null && norm.Transform != TransformKind.Generalise)
         {
