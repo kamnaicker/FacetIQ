@@ -1,12 +1,18 @@
-name: Publish Main 
+name: Publish Main
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-      
+
+# A second push must not deploy over a running deploy.
+concurrency:
+  group: publish-main
+  cancel-in-progress: false
+
 env:
+  # Must match the App Service name exactly, or the deploy step cannot find it.
   WEBAPP_NAME: FacetIQ
   WEBAPP_PCKG_PATH: "./publish"
 
@@ -15,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup .Net
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
@@ -28,11 +34,18 @@ jobs:
       - name: Build
         run: dotnet build ./FacetIQ.slnx --configuration Release --no-restore
 
+      # Nothing is deployed unless the suite passes. No test opens a database,
+      # so the runner needs no services.
+      - name: Test
+        run: dotnet test ./FacetIQ.slnx --configuration Release --no-build
+
+      # The API project alone. Publishing the solution would write four test
+      # projects into the same folder as the app.
       - name: Publish
-        run: dotnet publish ./FacetIQ.slnx --configuration Release --no-build --output '${{env.WEBAPP_PCKG_PATH}}'
+        run: dotnet publish ./src/FacetIQ.API/FacetIQ.API.csproj --configuration Release --no-build --output '${{env.WEBAPP_PCKG_PATH}}'
 
       - name: Deploy API
-        uses: actions/webapps-deploy@latest
+        uses: azure/webapps-deploy@v3
         with:
           app-name: ${{env.WEBAPP_NAME}}
           publish-profile: ${{secrets.AZURE_PUBLISH_PROFILE}}
