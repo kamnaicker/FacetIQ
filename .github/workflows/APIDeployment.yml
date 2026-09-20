@@ -1,15 +1,14 @@
-name: Publish Main
-
-env:
-  WEBAPP_NAME: FacetIQ
-  WEBAPP_PCKG_PATH: "./publish"
-  
+name: Publish Main 
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+      
+env:
+  WEBAPP_NAME: FacetIQ
+  WEBAPP_PCKG_PATH: "./publish"
 
 jobs:
   publish:
