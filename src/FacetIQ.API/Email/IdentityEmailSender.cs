@@ -49,14 +49,16 @@ public sealed class IdentityEmailSender : IEmailSender<AppUser>
             $"<p>Your password reset code is {resetCode}</p>");
     }
 
-    private Task SendAsync(string email, string subject, string html)
+    private async Task SendAsync(string email, string subject, string html)
     {
         // Skipped quietly: the Identity endpoints return 200 either way, so nothing is revealed.
+        // A refused attempt still counts against the address, which leaves four more today and a
+        // minute's wait, enough for the account to ask for the mail again.
         if (!_throttle.TryAcquire(email))
         {
             _logger.LogWarning("Email not sent: the recipient has reached its sending limit.");
 
-            return Task.CompletedTask;
+            return;
         }
 
         var message = new MimeMessage();
@@ -65,6 +67,18 @@ public sealed class IdentityEmailSender : IEmailSender<AppUser>
         message.Subject = subject;
         message.Body = new TextPart("html") { Text = html };
 
-        return _transport.SendAsync(message, CancellationToken.None);
+        // Identity creates the account and then asks for the mail, so a failure here would report
+        // failure for an account that exists, and the leftover row would block a second attempt.
+        // The account is left unconfirmed instead, which is the state resendConfirmationEmail
+        // expects. Every transport fault is caught, since MailKit raises several unrelated types
+        // for one outcome: the mail did not go.
+        try
+        {
+            await _transport.SendAsync(message, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Email not sent: the transport failed.");
+        }
     }
 }
