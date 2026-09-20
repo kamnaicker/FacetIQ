@@ -1,5 +1,10 @@
 name: Publish Main
 
+env:
+  WEBAPP_NAME: FacetIQ
+  WEBAPP_PCKG_PATH: "./publish"
+  
+
 on:
   workflow_dispatch:
   push:
@@ -25,4 +30,11 @@ jobs:
         run: dotnet build ./FacetIQ.slnx --configuration Release --no-restore
 
       - name: Publish
-        run: dotnet publish ./FacetIQ.slnx --configuration Release --no-restore
+        run: dotnet publish ./FacetIQ.slnx --configuration Release --no-build --output '${{env.WEBAPP_PCKG_PATH}}'
+
+      - name: Deploy API
+        uses: actions/webapps-deploy@latest
+        with:
+          app-name: ${{env.WEBAPP_NAME}}
+          publish-profile: ${{secrets.AZURE_PUBLISH_PROFILE}}
+          package: ${{env.WEBAPP_PCKG_PATH}}
