@@ -8,10 +8,12 @@ namespace FacetIQ.API.Tests.RateLimiting;
 public class AccountEmailRateLimitTests
 {
     [Theory]
-    [InlineData("/register")]
-    [InlineData("/resendConfirmationEmail")]
+    [InlineData("/registration")]
     [InlineData("/forgotPassword")]
-    [InlineData("/Register")]
+    [InlineData("/Registration")]
+    // A trailing slash reaches the same handler as the bare path.
+    [InlineData("/registration/")]
+    [InlineData("/forgotPassword/")]
     public void EndpointsThatSendEmail_AreLimited(string path)
     {
         Assert.True(AccountEmailRateLimit.Applies(Request("POST", path, "203.0.113.5")));
@@ -21,6 +23,9 @@ public class AccountEmailRateLimitTests
     [InlineData("POST", "/login")]
     [InlineData("POST", "/disclosure")]
     [InlineData("GET", "/register")]
+    [InlineData("POST", "/register")]
+    [InlineData("POST", "/registration/resend")]
+    [InlineData("POST", "/registration/resend/")]
     public void OtherRequests_AreNotLimited(string method, string path)
     {
         Assert.False(AccountEmailRateLimit.Applies(Request(method, path, "203.0.113.5")));
@@ -30,7 +35,7 @@ public class AccountEmailRateLimitTests
     public void SixthRequestFromOneAddress_IsRejected()
     {
         using var limiter = Limiter();
-        var request = Request("POST", "/resendConfirmationEmail", "203.0.113.5");
+        var request = Request("POST", "/registration", "203.0.113.5");
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
@@ -49,7 +54,7 @@ public class AccountEmailRateLimitTests
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
-            using var lease = limiter.AttemptAcquire(Request("POST", "/register", "203.0.113.5"));
+            using var lease = limiter.AttemptAcquire(Request("POST", "/registration", "203.0.113.5"));
         }
 
         using var rejected = limiter.AttemptAcquire(Request("POST", "/forgotPassword", "203.0.113.5"));
@@ -63,10 +68,10 @@ public class AccountEmailRateLimitTests
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
-            using var lease = limiter.AttemptAcquire(Request("POST", "/register", "203.0.113.5"));
+            using var lease = limiter.AttemptAcquire(Request("POST", "/registration", "203.0.113.5"));
         }
 
-        using var other = limiter.AttemptAcquire(Request("POST", "/register", "198.51.100.7"));
+        using var other = limiter.AttemptAcquire(Request("POST", "/registration", "198.51.100.7"));
         Assert.True(other.IsAcquired);
     }
 

@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using FacetIQ.API.Routing;
 
 namespace FacetIQ.API.RateLimiting;
 
@@ -9,7 +10,9 @@ public static class AccountEmailRateLimit
     private const string Unlimited = "unlimited";
 
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(15);
-    private static readonly string[] Paths = ["/register", "/resendConfirmationEmail", "/forgotPassword"];
+    // Resends are already capped per attempt and keyed by an unguessable id, so the per-IP limit
+    // would only add friction there.
+    private static readonly string[] Paths = ["/registration", "/forgotPassword"];
 
     public static bool Applies(HttpContext context)
     {
@@ -18,9 +21,12 @@ public static class AccountEmailRateLimit
             return false;
         }
 
-        foreach (var path in Paths)
+        // A trailing slash reaches the same handler, so it must be counted too.
+        var path = ClosedPathMatch.Normalize(context.Request.Path.Value ?? string.Empty);
+
+        foreach (var candidate in Paths)
         {
-            if (context.Request.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(path, candidate, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
