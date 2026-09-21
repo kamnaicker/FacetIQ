@@ -3,6 +3,7 @@ using FacetIQ.API.Email;
 using FacetIQ.API.Identity;
 using FacetIQ.API.OpenApi;
 using FacetIQ.API.RateLimiting;
+using FacetIQ.API.Registration;
 using FacetIQ.Data.Context;
 using FacetIQ.Data.DependencyInjection;
 using FacetIQ.Data.Identity;
@@ -40,10 +41,10 @@ builder.Services
         options.User.RequireUniqueEmail = true;
     })
     .AddRoles<IdentityRole>()
-    .AddUserManager<AppUserManager>()
     .AddEntityFrameworkStores<AuthDbContext>();
 
 builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
+builder.Services.AddScoped<RegistrationService>();
 
 builder.Services
     .AddOptions<SmtpOptions>()
@@ -51,10 +52,18 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-// Singletons: MapIdentityApi resolves the sender once, from the root provider.
+builder.Services
+    .AddOptions<ClientOptions>()
+    .Bind(builder.Configuration.GetSection(ClientOptions.Section))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Singletons: MapIdentityApi resolves the sender once, from the root provider. The concrete type is
+// registered too for RegistrationService, and both resolve one instance so they share one throttle.
 builder.Services.AddSingleton<IMailTransport, SmtpMailTransport>();
 builder.Services.AddSingleton<RecipientThrottle>();
-builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityEmailSender>();
+builder.Services.AddSingleton<IdentityEmailSender>();
+builder.Services.AddSingleton<IEmailSender<AppUser>>(services => services.GetRequiredService<IdentityEmailSender>());
 
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder()
@@ -117,6 +126,9 @@ app.UseCors(BrowserClients);
 
 // After CORS, so a refused request still carries the headers a browser needs to read it.
 app.UseRateLimiter();
+
+// Before authentication, so a closed Identity endpoint does no work at all.
+app.UseMiddleware<ClosedIdentityEndpointsMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

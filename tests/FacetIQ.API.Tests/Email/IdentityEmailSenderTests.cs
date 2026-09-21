@@ -37,6 +37,33 @@ public class IdentityEmailSenderTests
     }
 
     [Fact]
+    public async Task RegistrationCode_CarriesTheCodeAndTheCancellationLink()
+    {
+        var transport = new RecordingMailTransport();
+
+        await Sender(transport).SendRegistrationCodeAsync(
+            "riya@example.test",
+            "123456",
+            "https://facetiq-react.onrender.com/registration/cancel?token=abc");
+
+        var message = Assert.Single(transport.Sent);
+        Assert.Contains("123456", message.HtmlBody);
+        Assert.Contains("https://facetiq-react.onrender.com/registration/cancel?token=abc", message.HtmlBody);
+    }
+
+    [Fact]
+    public async Task RegistrationCode_WithNoCancellationUrl_OmitsTheCancelParagraph()
+    {
+        var transport = new RecordingMailTransport();
+
+        await Sender(transport).SendRegistrationCodeAsync("riya@example.test", "123456", null);
+
+        var message = Assert.Single(transport.Sent);
+        Assert.Contains("123456", message.HtmlBody);
+        Assert.DoesNotContain("cancel", message.HtmlBody, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task RepeatedEmailToTheSameAddress_IsNotSent()
     {
         var transport = new RecordingMailTransport();
@@ -48,9 +75,6 @@ public class IdentityEmailSenderTests
         Assert.Single(transport.Sent);
     }
 
-    // Identity creates the account and then asks for the mail, so a transport failure here would
-    // report failure for an account that now exists. Seen live on 20 September: Gmail refused the
-    // credentials, registration returned 500, and the unconfirmed account blocked a second attempt.
     [Fact]
     public async Task TransportFailure_DoesNotReachTheCaller()
     {

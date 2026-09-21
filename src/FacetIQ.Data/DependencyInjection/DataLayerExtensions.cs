@@ -1,4 +1,5 @@
 using FacetIQ.Data.Context;
+using FacetIQ.Data.Identity;
 using FacetIQ.Data.Repositories;
 using FacetIQ.Domain.Abstractions.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,7 @@ public static class DataLayerExtensions
         services.AddScoped<IStandingRepository, StandingRepository>();
         services.AddScoped<IAttributeRepository, AttributeRepository>();
         services.AddScoped<IAuditRecordRepository, AuditRecordRepository>();
+        services.AddScoped<IPendingRegistrationStore, PendingRegistrationStore>();
 
         return services;
     }
