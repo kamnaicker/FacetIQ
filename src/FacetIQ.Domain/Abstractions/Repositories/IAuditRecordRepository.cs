@@ -12,4 +12,7 @@ public interface IAuditRecordRepository
         Guid subjectId,
         int limit,
         CancellationToken cancellationToken);
+
+    /// <summary>Every record about the subject, newest first. For an export, where nothing may be left out.</summary>
+    Task<IReadOnlyList<AuditRecord>> ListAllForSubjectAsync(Guid subjectId, CancellationToken cancellationToken);
 }

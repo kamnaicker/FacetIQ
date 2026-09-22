@@ -47,6 +47,7 @@ builder.Services
 builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
 builder.Services.AddScoped<RegistrationService>();
 builder.Services.AddScoped<AccountDeletion>();
+builder.Services.AddScoped<AccountExporter>();
 
 builder.Services
     .AddOptions<SmtpOptions>()

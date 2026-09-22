@@ -16,6 +16,30 @@ public class AccountController : ControllerBase
         _deletion = deletion;
     }
 
+    /// <summary>Everything the caller's pages show, as one document.</summary>
+    [HttpGet("export")]
+    public async Task<ActionResult<AccountExport>> Export(
+        [FromServices] AccountExporter exporter,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var export = await exporter.ExportAsync(userId, cancellationToken);
+
+        // A token outliving its account: the session is over.
+        if (export is null)
+        {
+            return Unauthorized();
+        }
+
+        return Ok(export);
+    }
+
     /// <summary>Deletes the caller's account. The disclosure log is kept, but nothing in it identifies them afterwards.</summary>
     [HttpDelete]
     public async Task<ActionResult> Delete([FromBody] DeleteAccountRequest request, CancellationToken cancellationToken)

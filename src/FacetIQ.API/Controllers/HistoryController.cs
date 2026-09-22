@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FacetIQ.API.Mapping;
 using FacetIQ.Contracts.Disclosure;
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
@@ -59,24 +60,9 @@ public class HistoryController : ControllerBase
                 addresses[record.RequesterUserId] = address;
             }
 
-            responses.Add(ToContract(record, address, isSelf: record.RequesterUserId == userId));
+            responses.Add(DisclosureRecordMapper.ToContract(record, address, isSelf: record.RequesterUserId == userId));
         }
 
         return Ok(responses);
     }
-
-    private static DisclosureRecordResponse ToContract(AuditRecord record, string? requester, bool isSelf) => new()
-    {
-        Id = record.Id,
-        Timestamp = record.Timestamp,
-        Requester = requester,
-        IsSelf = isSelf,
-        AttributeKey = record.RequestedAttributeKey,
-        Purpose = record.Purpose.ToString(),
-        Outcome = record.Outcome.ToString(),
-        DenyReason = record.DenyReason?.ToString(),
-        Transform = record.Transform?.ToString(),
-        TransformParameter = record.TransformParameter,
-        JustifyingPrinciple = record.JustifyingPrinciple
-    };
 }

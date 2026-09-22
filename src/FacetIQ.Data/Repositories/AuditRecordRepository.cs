@@ -30,4 +30,15 @@ public sealed class AuditRecordRepository : IAuditRecordRepository
             .Take(limit)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<AuditRecord>> ListAllForSubjectAsync(
+        Guid subjectId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.AuditRecords
+            .AsNoTracking()
+            .Where(record => record.SubjectId == subjectId)
+            .OrderByDescending(record => record.Timestamp)
+            .ToListAsync(cancellationToken);
+    }
 }

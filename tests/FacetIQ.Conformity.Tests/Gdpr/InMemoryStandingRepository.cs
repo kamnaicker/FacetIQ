@@ -22,14 +22,23 @@ internal sealed class InMemoryStandingRepository : IStandingRepository
                     standing.AcceptedAt is not null)
                 .ToList());
 
-    // The evaluator only calls GetAcceptedAsync.
     public Task<IReadOnlyList<Standing>> ListIssuedBySubjectAsync(
         Guid subjectId,
-        CancellationToken cancellationToken) => throw new NotSupportedException();
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult<IReadOnlyList<Standing>>(
+            _standings.Where(standing => standing.SubjectId == subjectId).ToList());
+    }
 
     public Task<IReadOnlyList<Standing>> ListHeldByAsync(
         string requesterUserId,
-        CancellationToken cancellationToken) => throw new NotSupportedException();
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult<IReadOnlyList<Standing>>(
+            _standings.Where(standing => standing.RequesterUserId == requesterUserId).ToList());
+    }
+
+    // Neither the evaluator nor the export reads or changes a single standing.
 
     public Task<Standing?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         throw new NotSupportedException();

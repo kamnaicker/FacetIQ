@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FacetIQ.API.Mapping;
 using FacetIQ.Contracts.Standings;
 using FacetIQ.Domain.Abstractions.Repositories;
 using FacetIQ.Domain.Entities;
@@ -200,18 +201,13 @@ public class StandingController : ControllerBase
 
     private async Task<StandingResponse> ToContract(Standing standing, bool withHolder, CancellationToken cancellationToken)
     {
-        return new StandingResponse
-        {
-            Id = standing.Id,
-            Value = standing.Value,
-            IssuerKind = standing.IssuerKind.ToString(),
-            Issuer = standing.IssuerKind == IssuerKind.Subject
-                ? await AddressOf(standing.Issuer, cancellationToken)
-                : standing.Issuer,
-            Holder = withHolder ? await AddressOf(standing.RequesterUserId, cancellationToken) : null,
-            IssuedAt = standing.IssuedAt,
-            AcceptedAt = standing.AcceptedAt,
-        };
+        var issuer = standing.IssuerKind == IssuerKind.Subject
+            ? await AddressOf(standing.Issuer, cancellationToken)
+            : standing.Issuer;
+
+        var holder = withHolder ? await AddressOf(standing.RequesterUserId, cancellationToken) : null;
+
+        return StandingMapper.ToContract(standing, issuer, holder);
     }
 
     private async Task<string> AddressOf(string userId, CancellationToken cancellationToken)
