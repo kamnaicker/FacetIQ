@@ -29,6 +29,7 @@ public static class DataLayerExtensions
         services.AddScoped<IAttributeRepository, AttributeRepository>();
         services.AddScoped<IAuditRecordRepository, AuditRecordRepository>();
         services.AddScoped<IPendingRegistrationStore, PendingRegistrationStore>();
+        services.AddScoped<IAccountDataEraser, AccountDataEraser>();
 
         return services;
     }

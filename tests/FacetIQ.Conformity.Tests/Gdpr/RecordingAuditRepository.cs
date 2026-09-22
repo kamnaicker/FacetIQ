@@ -25,4 +25,13 @@ internal sealed class RecordingAuditRepository : IAuditRecordRepository
                 .OrderByDescending(record => record.Timestamp)
                 .Take(limit)
                 .ToList());
+
+    public Task<IReadOnlyList<AuditRecord>> ListAllForSubjectAsync(Guid subjectId, CancellationToken cancellationToken)
+    {
+        return Task.FromResult<IReadOnlyList<AuditRecord>>(
+            Written
+                .Where(record => record.SubjectId == subjectId)
+                .OrderByDescending(record => record.Timestamp)
+                .ToList());
+    }
 }
