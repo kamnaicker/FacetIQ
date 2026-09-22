@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using FacetIQ.API.Account;
 using FacetIQ.API.Email;
 using FacetIQ.API.Identity;
 using FacetIQ.API.OpenApi;
@@ -45,6 +46,7 @@ builder.Services
 
 builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
 builder.Services.AddScoped<RegistrationService>();
+builder.Services.AddScoped<AccountDeletion>();
 
 builder.Services
     .AddOptions<SmtpOptions>()
